@@ -31,9 +31,24 @@ def dashboard(request):
                 run_shell_command_task.delay(log.id, command)
                 messages.success(request, f"Shell command '{command}' started in background.")
             elif command_type == "celery":
-                # For celery, it's really a shell command
-                run_shell_command_task.delay(log.id, f"celery -A myauth {command}")
-                messages.success(request, f"Celery command '{command}' started in background.")
+                if command.startswith("call "):
+                    task_name = command.replace("call ", "").strip()
+                    try:
+                        from celery import current_app
+                        current_app.send_task(task_name)
+                        log.status = "SUCCESS"
+                        log.output = f"Successfully dispatched background celery task: {task_name}\n\nNote: The task has been queued to the Celery workers. You can check the worker logs for the actual execution output."
+                        log.save()
+                        messages.success(request, f"Celery task '{task_name}' dispatched successfully.")
+                    except Exception as e:
+                        log.status = "FAILED"
+                        log.output = str(e)
+                        log.save()
+                        messages.error(request, f"Failed to dispatch celery task: {e}")
+                else:
+                    # Fallback for celery shell commands like 'celery status'
+                    run_shell_command_task.delay(log.id, command)
+                    messages.success(request, f"Celery command '{command}' started in background.")
                 
             return redirect("aa_admin_toolkit:dashboard")
 
