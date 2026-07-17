@@ -68,7 +68,7 @@ def log_detail(request, log_id):
 from django.http import JsonResponse
 from django.db import connection
 from django.contrib.auth.models import User
-from eveonline.models import EveCharacter
+from allianceauth.eveonline.models import EveCharacter
 import time
 import os
 
