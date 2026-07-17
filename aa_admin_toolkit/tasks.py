@@ -37,12 +37,19 @@ def run_shell_command_task(log_id, command_str):
         log.save()
         
         try:
+            from django.conf import settings
+            import os
+            env = os.environ.copy()
+            env["LC_ALL"] = "C.UTF-8"
+            env["LANG"] = "C.UTF-8"
             result = subprocess.run(
                 command_str, 
                 shell=True, 
                 capture_output=True, 
                 text=True, 
-                timeout=300
+                timeout=300,
+                cwd=settings.BASE_DIR,
+                env=env
             )
             log.status = "SUCCESS" if result.returncode == 0 else "FAILED"
             log.output = f"STDOUT:\n{result.stdout}\n\nSTDERR:\n{result.stderr}"
