@@ -1,0 +1,155 @@
+{% extends "allianceauth/base.html" %}
+{% load i18n %}
+{% block page_title %}{% translate "Admin Toolkit" %}{% endblock page_title %}
+
+{% block content %}
+<div class="col-lg-12">
+    <h1 class="page-header text-center">Admin Toolkit</h1>
+    
+    {% if messages %}
+    <div class="row">
+        <div class="col-md-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible" role="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- Django Commands -->
+        <div class="col-md-4">
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <h3 class="panel-title">Django Commands</h3>
+                </div>
+                <div class="panel-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="type" value="django">
+                        
+                        <button type="submit" name="command" value="check" class="btn btn-primary btn-block" style="margin-bottom: 10px;">
+                            Run System Check (check)
+                        </button>
+                        
+                        <button type="submit" name="command" value="showmigrations" class="btn btn-primary btn-block" style="margin-bottom: 10px;">
+                            Show Migrations
+                        </button>
+
+                        <button type="submit" name="command" value="clearsessions" class="btn btn-warning btn-block" style="margin-bottom: 10px;">
+                            Clear Expired Sessions
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Discord Commands -->
+        <div class="col-md-4">
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    <h3 class="panel-title">Discord Bot Commands</h3>
+                </div>
+                <div class="panel-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="type" value="django">
+                        
+                        <button type="submit" name="command" value="aadiscordbot_sync_users" class="btn btn-info btn-block" style="margin-bottom: 10px;">
+                            Sync All Discord Users
+                        </button>
+                        
+                        <button type="submit" name="command" value="aadiscordbot_refresh_roles" class="btn btn-info btn-block" style="margin-bottom: 10px;">
+                            Refresh Discord Roles
+                        </button>
+                    </form>
+
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="type" value="celery">
+                        <button type="submit" name="command" value="call discord.update_all_groups" class="btn btn-info btn-block" style="margin-bottom: 10px;">
+                            Celery: Sync Discord Groups
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- System Commands -->
+        <div class="col-md-4">
+            <div class="panel panel-danger">
+                <div class="panel-heading">
+                    <h3 class="panel-title">System Commands</h3>
+                </div>
+                <div class="panel-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="type" value="shell">
+                        
+                        <button type="submit" name="command" value="pip list" class="btn btn-danger btn-block" style="margin-bottom: 10px;">
+                            List Installed Packages (pip list)
+                        </button>
+                        
+                        <button type="submit" name="command" value="celery -A myauth status" class="btn btn-danger btn-block" style="margin-bottom: 10px;">
+                            Celery Worker Status
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-12">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title">Recent Command History</h3>
+                </div>
+                <div class="panel-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Command</th>
+                                <th>Status</th>
+                                <th>Executed At</th>
+                                <th>Executed By</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in recent_logs %}
+                            <tr>
+                                <td><code>{{ log.command_name }}</code></td>
+                                <td>
+                                    {% if log.status == 'SUCCESS' %}
+                                    <span class="label label-success">SUCCESS</span>
+                                    {% elif log.status == 'FAILED' %}
+                                    <span class="label label-danger">FAILED</span>
+                                    {% elif log.status == 'RUNNING' %}
+                                    <span class="label label-info">RUNNING</span>
+                                    {% else %}
+                                    <span class="label label-default">{{ log.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ log.executed_at }}</td>
+                                <td>{{ log.executed_by }}</td>
+                                <td>
+                                    <a href="{% url 'aa_admin_toolkit:log_detail' log.id %}" class="btn btn-xs btn-primary">View Output</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">No commands run yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "allianceauth/base.html" %}
+{% load i18n %}
+{% block page_title %}{% translate "Command Output" %}{% endblock page_title %}
+
+{% block content %}
+<div class="col-lg-12">
+    <div class="row">
+        <div class="col-md-12 mb-3" style="margin-bottom: 20px;">
+            <a href="{% url 'aa_admin_toolkit:dashboard' %}" class="btn btn-default">&larr; Back to Dashboard</a>
+        </div>
+    </div>
+    
+    <div class="panel panel-default">
+        <div class="panel-heading">
+            <h3 class="panel-title">Command Output: <code>{{ log.command_name }}</code></h3>
+        </div>
+        <div class="panel-body">
+            <dl class="dl-horizontal">
+                <dt>Status</dt>
+                <dd>
+                    {% if log.status == 'SUCCESS' %}
+                    <span class="label label-success">SUCCESS</span>
+                    {% elif log.status == 'FAILED' %}
+                    <span class="label label-danger">FAILED</span>
+                    {% elif log.status == 'RUNNING' %}
+                    <span class="label label-info">RUNNING</span>
+                    {% else %}
+                    <span class="label label-default">{{ log.status }}</span>
+                    {% endif %}
+                </dd>
+                <dt>Executed By</dt>
+                <dd>{{ log.executed_by }}</dd>
+                <dt>Executed At</dt>
+                <dd>{{ log.executed_at }}</dd>
+            </dl>
+            
+            <hr>
+            
+            <h4>Output Log</h4>
+            <pre style="max-height: 600px; overflow-y: scroll; background-color: #2b2b2b; color: #a9b7c6; border-radius: 4px; padding: 15px;">
+{{ log.output|default:"No output recorded yet." }}
+            </pre>
+            
+            {% if log.status == 'RUNNING' or log.status == 'PENDING' %}
+            <script>
+                // Auto-refresh the page every 3 seconds if the task is still running
+                setTimeout(function() {
+                    location.reload();
+                }, 3000);
+            </script>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
