@@ -39,5 +39,6 @@ setup(
     ],
     install_requires=[
         "allianceauth>=3.0.0",
+        "psutil>=5.9.0",
     ],
 )
