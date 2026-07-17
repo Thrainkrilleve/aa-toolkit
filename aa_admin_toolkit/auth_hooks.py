@@ -1,4 +1,4 @@
-from allianceauth.services.hooks import MenuItemHook, UrlsHook
+from allianceauth.services.hooks import MenuItemHook, UrlHook
 from allianceauth import hooks
 from . import urls
 
@@ -24,4 +24,4 @@ def register_menu():
 
 @hooks.register("url_hook")
 def register_urls():
-    return UrlsHook(urls, "aa_admin_toolkit", "^admin-toolkit/")
+    return UrlHook(urls, "aa_admin_toolkit", "^admin-toolkit/")
