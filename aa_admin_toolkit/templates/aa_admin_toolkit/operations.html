@@ -1,0 +1,389 @@
+{% extends "allianceauth/base-bs5.html" %}
+{% load i18n %}
+{% block page_title %}{% translate "Admin Toolkit Operations" %}{% endblock page_title %}
+
+{% block content %}
+<div class="col-lg-12">
+    <div class="row">
+        <div class="col-md-12 mb-3" style="margin-bottom: 20px;">
+            <a href="{% url 'aa_admin_toolkit:dashboard' %}" class="btn btn-default">&larr; Back to Dashboard</a>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="row">
+        <div class="col-md-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible" role="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not can_execute %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="alert alert-warning" role="alert">
+                You currently have read-only access. Monitoring and logs are available, but action execution is disabled for your account.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="panel panel-primary">
+                <div class="panel-heading"><h3 class="panel-title">Django Commands</h3></div>
+                <div class="panel-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <button type="submit" name="action" value="django_check" class="btn btn-primary btn-block" style="margin-bottom: 10px;">Run System Check</button>
+                        <button type="submit" name="action" value="django_showmigrations" class="btn btn-primary btn-block" style="margin-bottom: 10px;">Show Migrations</button>
+                        <button type="submit" name="action" value="django_clearsessions" class="btn btn-warning btn-block" style="margin-bottom: 10px;">Clear Expired Sessions</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="panel panel-warning">
+                <div class="panel-heading"><h3 class="panel-title">Alliance Auth Maintenance</h3></div>
+                <div class="panel-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <button type="submit" name="action" value="auth_check" class="btn btn-warning btn-block" style="margin-bottom: 10px;">auth check</button>
+                        <button type="submit" name="action" value="auth_showmigrations" class="btn btn-warning btn-block" style="margin-bottom: 10px;">auth showmigrations</button>
+                        <button type="submit" name="action" value="auth_migrate" class="btn btn-warning btn-block" style="margin-bottom: 10px;">auth migrate</button>
+                        <button type="submit" name="action" value="auth_collectstatic" class="btn btn-warning btn-block" style="margin-bottom: 10px;">auth collectstatic</button>
+                    </form>
+
+                    {% if manage_commands %}
+                    <hr>
+                    <h4>Third-Party App Commands</h4>
+                    <p class="text-muted">These commands are allowlisted in settings and run inside the app container.</p>
+                    {% for item in manage_commands %}
+                    <form method="POST" style="margin-bottom: 10px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="manage_command">
+                        <input type="hidden" name="command" value="{{ item.command }}">
+                        {% for arg in item.args %}
+                        <input type="hidden" name="args" value="{{ arg }}">
+                        {% endfor %}
+                        <button type="submit" class="btn btn-warning btn-block">{{ item.label }}</button>
+                    </form>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="panel panel-default">
+                <div class="panel-heading"><h3 class="panel-title">Maintenance Mode</h3></div>
+                <div class="panel-body">
+                    <p>
+                        Current state:
+                        {% if maintenance_enabled %}
+                        <span class="label label-warning">Enabled</span>
+                        {% else %}
+                        <span class="label label-success">Disabled</span>
+                        {% endif %}
+                    </p>
+                    <p>Uses a sentinel file so a middleware or proxy can block non-admin access during upgrades.</p>
+                    <form method="POST" class="form-inline" style="margin-bottom: 10px;">
+                        {% csrf_token %}
+                        <button type="submit" name="action" value="maintenance_enable" class="btn btn-warning btn-block">Enable Maintenance Mode</button>
+                    </form>
+                    <form method="POST" class="form-inline">
+                        {% csrf_token %}
+                        <button type="submit" name="action" value="maintenance_disable" class="btn btn-success btn-block">Disable Maintenance Mode</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="panel panel-success">
+                <div class="panel-heading"><h3 class="panel-title">Database Backup</h3></div>
+                <div class="panel-body">
+                    <p>Creates a timestamped backup file from the database container using the configured dump command.</p>
+                    <form method="POST">
+                        {% csrf_token %}
+                        <button type="submit" name="action" value="db_backup" class="btn btn-success btn-block">Run Backup</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="panel panel-info">
+                <div class="panel-heading"><h3 class="panel-title">Discord Sync</h3></div>
+                <div class="panel-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <button type="submit" name="action" value="discord_sync_all" class="btn btn-info btn-block" style="margin-bottom: 10px;">Sync Everything</button>
+                        <button type="submit" name="action" value="discord_sync_groups" class="btn btn-info btn-block" style="margin-bottom: 10px;">Sync Groups Only</button>
+                        <button type="submit" name="action" value="discord_sync_nicknames" class="btn btn-info btn-block" style="margin-bottom: 10px;">Sync Nicknames Only</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-12">
+            <div class="panel panel-danger">
+                <div class="panel-heading"><h3 class="panel-title">System Commands</h3></div>
+                <div class="panel-body">
+                    <form method="POST">
+                        {% csrf_token %}
+                        <button type="submit" name="action" value="pip_list" class="btn btn-danger btn-block" style="margin-bottom: 10px;">List Installed Packages</button>
+                        <button type="submit" name="action" value="celery_status" class="btn btn-danger btn-block" style="margin-bottom: 10px;">Celery Worker Status</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if docker_enabled %}
+    <div class="row">
+        <div class="col-md-12">
+            <div class="panel panel-success">
+                <div class="panel-heading"><h3 class="panel-title">Docker Controls</h3></div>
+                <div class="panel-body">
+                    <form method="POST" class="form-inline" style="margin-bottom: 15px;">
+                        {% csrf_token %}
+                        <button type="submit" name="action" value="docker_status" class="btn btn-success">Docker Status</button>
+                    </form>
+
+                    <form method="POST" class="form-inline" style="margin-bottom: 15px;">
+                        {% csrf_token %}
+                        <label style="margin-right: 10px;">
+                            <input type="checkbox" name="confirm_full_restart" value="1">
+                            I understand this will stop and recreate the full stack.
+                        </label>
+                        <div class="form-group" style="margin-right: 10px;">
+                            <label class="sr-only" for="confirm-full-restart-phrase">Confirmation Phrase</label>
+                            <input id="confirm-full-restart-phrase" type="text" name="confirm_full_restart_phrase" class="form-control" placeholder="Type RESTART STACK">
+                        </div>
+                        <button type="submit" name="action" value="docker_full_restart" class="btn btn-danger">Full Stack Restart</button>
+                    </form>
+
+                    <form method="POST" class="form-inline" style="margin-bottom: 15px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="docker_restart_service">
+                        <div class="form-group" style="margin-right: 10px;">
+                            <label class="sr-only" for="docker-restart-service">Service</label>
+                            <select id="docker-restart-service" name="service" class="form-control">
+                                {% for service in docker_services %}
+                                <option value="{{ service }}">{{ service }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-warning">Restart Service</button>
+                    </form>
+
+                    <form method="POST" class="form-inline" style="margin-bottom: 15px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="docker_pull_service">
+                        <div class="form-group" style="margin-right: 10px;">
+                            <label class="sr-only" for="docker-pull-service">Service</label>
+                            <select id="docker-pull-service" name="service" class="form-control">
+                                {% for service in docker_services %}
+                                <option value="{{ service }}">{{ service }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-warning">Pull Service</button>
+                    </form>
+
+                    <form method="POST" class="form-inline" style="margin-bottom: 15px;">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="docker_up_service">
+                        <div class="form-group" style="margin-right: 10px;">
+                            <label class="sr-only" for="docker-up-service">Service</label>
+                            <select id="docker-up-service" name="service" class="form-control">
+                                {% for service in docker_services %}
+                                <option value="{{ service }}">{{ service }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-warning">Up Service</button>
+                    </form>
+
+                    <form method="POST" class="form-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="docker_logs_service">
+                        <div class="form-group" style="margin-right: 10px;">
+                            <label class="sr-only" for="docker-logs-service">Service</label>
+                            <select id="docker-logs-service" name="service" class="form-control">
+                                {% for service in docker_services %}
+                                <option value="{{ service }}">{{ service }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-right: 10px;">
+                            <label class="sr-only" for="docker-logs-tail">Tail</label>
+                            <input id="docker-logs-tail" name="tail" type="number" min="1" max="1000" value="100" class="form-control" placeholder="Tail lines">
+                        </div>
+                        <button type="submit" class="btn btn-warning">Tail Logs</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="panel panel-default">
+                <div class="panel-heading"><h3 class="panel-title">Package Management</h3></div>
+                <div class="panel-body">
+                    <p class="text-muted">Package changes should be treated as maintenance operations. Confirm the change, then choose a follow-up restart if needed.</p>
+                    <form method="POST" class="form-inline">
+                        {% csrf_token %}
+                        <div class="form-group" style="margin-right: 10px;">
+                            <label class="sr-only" for="package-action">Action</label>
+                            <select id="package-action" name="action" class="form-control">
+                                <option value="pip_install">Install</option>
+                                <option value="pip_upgrade">Upgrade</option>
+                                <option value="pip_uninstall">Uninstall</option>
+                                <option value="pip_show">Show Details</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-right: 10px;">
+                            <label class="sr-only" for="package-name">Package</label>
+                            <input id="package-name" name="package" type="text" class="form-control" placeholder="package-name" required>
+                        </div>
+                        <div class="form-group" style="margin-right: 10px;">
+                            <label class="sr-only" for="package-version">Version</label>
+                            <input id="package-version" name="version" type="text" class="form-control" placeholder="Version or specifier">
+                        </div>
+                        <div class="form-group" style="margin-right: 10px;">
+                            <label class="sr-only" for="package-followup">Follow-up</label>
+                            <select id="package-followup" name="followup" class="form-control">
+                                <option value="">No follow-up</option>
+                                <option value="restart_app">Restart app service</option>
+                                <option value="restart_selected_service">Restart selected Docker service</option>
+                                <option value="restart_celery_workers">Restart Celery workers</option>
+                                <option value="full_stack_recreate">Full stack down/up</option>
+                            </select>
+                        </div>
+                        {% if docker_enabled %}
+                        <div class="form-group" style="margin-right: 10px;">
+                            <label class="sr-only" for="package-followup-service">Service</label>
+                            <select id="package-followup-service" name="followup_service" class="form-control">
+                                {% for service in docker_services %}
+                                <option value="{{ service }}">{{ service }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        <label style="margin-right: 10px;">
+                            <input type="checkbox" name="confirm_package_change" value="1">
+                            I understand this changes the running app environment.
+                        </label>
+                        <label style="margin-right: 10px;">
+                            <input type="checkbox" name="confirm_followup_recreate" value="1">
+                            Required for Full stack down/up follow-up.
+                        </label>
+                        <div class="form-group" style="margin-right: 10px;">
+                            <label class="sr-only" for="confirm-followup-recreate-phrase">Recreate Confirmation Phrase</label>
+                            <input id="confirm-followup-recreate-phrase" type="text" name="confirm_followup_recreate_phrase" class="form-control" placeholder="Type RECREATE STACK">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Run Package Action</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="panel panel-warning">
+                <div class="panel-heading"><h3 class="panel-title">Allowlisted File Editor</h3></div>
+                <div class="panel-body">
+                    <form method="GET" class="form-inline" style="margin-bottom: 15px;">
+                        <div class="form-group" style="margin-right: 10px;">
+                            <label class="sr-only" for="editor-file">File</label>
+                            <select id="editor-file" name="file" class="form-control" onchange="this.form.submit()">
+                                {% for file_name in editable_files %}
+                                <option value="{{ file_name }}" {% if file_name == selected_file %}selected{% endif %}>{{ file_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </form>
+
+                    {% if selected_file %}
+                    <form method="POST">
+                        {% csrf_token %}
+                        <input type="hidden" name="file" value="{{ selected_file }}">
+                        <div class="form-group" style="width: 100%;">
+                            <label for="file-content">Current Content</label>
+                            <textarea id="file-content" name="content" class="form-control" rows="18" style="width: 100%; font-family: monospace;">{{ file_content }}</textarea>
+                        </div>
+                        <div style="margin-top: 10px;">
+                            <button type="submit" name="action" value="file_save" class="btn btn-primary">Save with Backup</button>
+                            <button type="submit" name="action" value="file_revert" class="btn btn-warning" {% if not backup_exists %}disabled{% endif %}>Revert to Previous</button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <p>No editable files are configured.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="panel panel-default">
+                <div class="panel-heading">
+                    <h3 class="panel-title">Recent Command History</h3>
+                </div>
+                <div class="panel-body">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Command</th>
+                                <th>Status</th>
+                                <th>Executed At</th>
+                                <th>Executed By</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in recent_logs %}
+                            <tr>
+                                <td><code>{{ log.command_name }}</code></td>
+                                <td>
+                                    {% if log.status == 'SUCCESS' %}
+                                    <span class="label label-success">SUCCESS</span>
+                                    {% elif log.status == 'FAILED' %}
+                                    <span class="label label-danger">FAILED</span>
+                                    {% elif log.status == 'RUNNING' %}
+                                    <span class="label label-info">RUNNING</span>
+                                    {% else %}
+                                    <span class="label label-default">{{ log.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ log.executed_at }}</td>
+                                <td>{{ log.executed_by }}</td>
+                                <td>
+                                    <a href="{% url 'aa_admin_toolkit:log_detail' log.id %}" class="btn btn-xs btn-primary">View Output</a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center">No commands run yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

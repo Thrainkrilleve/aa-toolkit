@@ -1,0 +1,3 @@
+include README.md
+recursive-include aa_admin_toolkit/templates *
+recursive-include aa_admin_toolkit/static *
