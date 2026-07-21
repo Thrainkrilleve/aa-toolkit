@@ -29,6 +29,21 @@ python manage.py collectstatic
 
 ## Usage
 By default, only `is_superuser` users can view and execute actions in the Admin Toolkit.
+The toolkit always keeps `local.py` editable so you can define Alliance Auth access settings there.
+
+Example `local.py` setup:
+
+```python
+INSTALLED_APPS += [
+	"aa_admin_toolkit",
+]
+
+AA_ADMIN_TOOLKIT_ALLOW_VIEW_NON_SUPERUSERS = True
+AA_ADMIN_TOOLKIT_ALLOW_EXECUTE_NON_SUPERUSERS = False
+
+AA_ADMIN_TOOLKIT_VIEW_ALLOWED_USERS = ["viewer1", "viewer2"]
+AA_ADMIN_TOOLKIT_EXECUTE_ALLOWED_USERS = ["operator1"]
+```
 
 ## Settings
 
@@ -82,7 +97,22 @@ If view/execute allowlists are not set, they fall back to the legacy allowlists:
 
 ### Other
 
-- `AA_ADMIN_TOOLKIT_ALLOWED_EDITABLE_FILES`
+- `AA_ADMIN_TOOLKIT_ALLOWED_EDITABLE_FILES` (the toolkit always keeps `local.py` editable)
 - `AA_ADMIN_TOOLKIT_ALLOWED_MANAGE_COMMANDS`
 - `AA_ADMIN_TOOLKIT_MAINTENANCE_SENTINEL_PATH`
 - `AA_ADMIN_TOOLKIT_AUDIT_WEBHOOK_URL`
+
+### Example local.py access settings
+
+Put your toolkit access rules in `local.py` so they stay alongside your Alliance Auth configuration:
+
+```python
+AA_ADMIN_TOOLKIT_ALLOW_VIEW_NON_SUPERUSERS = True
+AA_ADMIN_TOOLKIT_ALLOW_EXECUTE_NON_SUPERUSERS = False
+
+AA_ADMIN_TOOLKIT_VIEW_ALLOWED_GROUPS = ["Admin Toolkit Viewers"]
+AA_ADMIN_TOOLKIT_EXECUTE_ALLOWED_GROUPS = ["Admin Toolkit Operators"]
+
+AA_ADMIN_TOOLKIT_VIEW_ALLOWED_EVE_CHARACTER_IDS = [123456789]
+AA_ADMIN_TOOLKIT_EXECUTE_ALLOWED_EVE_CHARACTER_IDS = [987654321]
+```
