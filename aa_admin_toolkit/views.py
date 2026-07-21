@@ -27,6 +27,26 @@ from .actions import (
 FULL_RESTART_CONFIRM_PHRASE = "RESTART STACK"
 FULL_RECREATE_CONFIRM_PHRASE = "RECREATE STACK"
 
+DOCKER_REQUIRED_ACTIONS = {
+    "auth_check",
+    "auth_showmigrations",
+    "auth_migrate",
+    "auth_collectstatic",
+    "db_backup",
+    "docker_status",
+    "docker_restart_service",
+    "docker_up_service",
+    "docker_pull_service",
+    "docker_logs_service",
+    "docker_full_restart",
+    "manage_command",
+    "pip_list",
+    "pip_show",
+    "pip_install",
+    "pip_upgrade",
+    "pip_uninstall",
+}
+
 
 def toolkit_access_check(user):
     return user_can_view(user)
@@ -56,6 +76,10 @@ def operations(request):
 
         if not is_supported_action(action_key):
             messages.error(request, "Unknown action requested.")
+            return redirect("aa_admin_toolkit:operations")
+
+        if action_key in DOCKER_REQUIRED_ACTIONS and not docker_enabled():
+            messages.error(request, "Docker is disabled, so this action cannot run.")
             return redirect("aa_admin_toolkit:operations")
 
         if action_key == "docker_full_restart":

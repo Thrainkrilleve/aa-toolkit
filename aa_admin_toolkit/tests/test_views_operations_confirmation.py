@@ -184,6 +184,8 @@ class OperationsConfirmationTests(unittest.TestCase):
         self.fake_log_manager.created.clear()
         self.fake_task.calls.clear()
         self.webhook_calls.clear()
+        self.views.user_can_execute = lambda user: True
+        self.views.docker_enabled = lambda: True
 
     def test_full_restart_requires_checkbox(self):
         request = _FakeRequest({"action": "docker_full_restart", "confirm_full_restart_phrase": "RESTART STACK"})
@@ -282,6 +284,17 @@ class OperationsConfirmationTests(unittest.TestCase):
 
         self.assertEqual(response.get("redirect"), "aa_admin_toolkit:operations")
         self.assertTrue(any("not execute actions" in msg for level, msg in request._messages if level == "error"))
+        self.assertEqual(self.fake_task.calls, [])
+        self.assertEqual(len(self.fake_log_manager.created), 0)
+
+    def test_docker_actions_are_blocked_when_docker_is_disabled(self):
+        self.views.docker_enabled = lambda: False
+        request = _FakeRequest({"action": "docker_status"})
+
+        response = self.views.operations(request)
+
+        self.assertEqual(response.get("redirect"), "aa_admin_toolkit:operations")
+        self.assertTrue(any("Docker is disabled" in msg for level, msg in request._messages if level == "error"))
         self.assertEqual(self.fake_task.calls, [])
         self.assertEqual(len(self.fake_log_manager.created), 0)
 

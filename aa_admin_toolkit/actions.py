@@ -80,9 +80,6 @@ def docker_full_restart_enabled() -> bool:
 
 
 def docker_service_snapshot() -> list[dict[str, str]]:
-    if not docker_enabled():
-        return []
-
     allowed_services = allowed_docker_services()
     inventory = _compose_service_inventory(allowed_services)
 
@@ -317,7 +314,10 @@ def allowed_docker_services() -> list[str]:
 
 def allowed_editor_files() -> list[str]:
     files = setting("AA_ADMIN_TOOLKIT_ALLOWED_EDITABLE_FILES", ["requirements.txt", "local.py"])
-    return [str(item) for item in files]
+    normalized = [str(item) for item in files]
+    if "local.py" not in normalized:
+        normalized.append("local.py")
+    return normalized
 
 
 def allowed_manage_commands() -> list[dict[str, Any]]:
@@ -435,9 +435,6 @@ def user_can_view(user) -> bool:
     if not user or not user.is_authenticated:
         return False
 
-    if user.is_superuser:
-        return True
-
     if not allow_view_non_superusers():
         return False
 
@@ -461,9 +458,6 @@ def user_can_view(user) -> bool:
 def user_can_execute(user) -> bool:
     if not user or not user.is_authenticated:
         return False
-
-    if user.is_superuser:
-        return True
 
     if not allow_execute_non_superusers():
         return False

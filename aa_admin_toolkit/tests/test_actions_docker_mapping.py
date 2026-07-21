@@ -47,6 +47,27 @@ sys.modules["aa_admin_toolkit.actions"] = actions
 spec.loader.exec_module(actions)
 
 
+class _FakeGroupsFilterResult:
+    def exists(self):
+        return False
+
+
+class _FakeGroups:
+    def filter(self, **_kwargs):
+        return _FakeGroupsFilterResult()
+
+
+class _FakeUser:
+    def __init__(self, *, username="admin", is_authenticated=True, is_superuser=False):
+        self.username = username
+        self.is_authenticated = is_authenticated
+        self.is_superuser = is_superuser
+        self.groups = _FakeGroups()
+
+    def has_perm(self, _permission):
+        return False
+
+
 class DockerServiceSnapshotMappingTests(unittest.TestCase):
     def _cp(self, argv: list[str], stdout: str, returncode: int = 0) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(args=argv, returncode=returncode, stdout=stdout, stderr="")
@@ -175,6 +196,60 @@ class DockerServiceSnapshotMappingTests(unittest.TestCase):
 
         self.assertEqual(snapshot[0]["cpu"], "-")
         self.assertEqual(snapshot[0]["memory"], "-")
+
+    @patch("aa_admin_toolkit.actions.compose_project_directory", return_value="/tmp")
+    @patch("aa_admin_toolkit.actions.compose_base_command", return_value=["docker", "compose"])
+    @patch("aa_admin_toolkit.actions.allowed_docker_services", return_value=["web"])
+    @patch("aa_admin_toolkit.actions.docker_enabled", return_value=False)
+    def test_snapshot_still_collects_when_actions_are_disabled(self, _docker_enabled, _allowed_services, _compose_cmd, _compose_dir):
+        ps_payload = json.dumps([
+            {
+                "Service": "web",
+                "State": "running",
+                "Health": "healthy",
+                "ID": "abcdef1234567890",
+                "Name": "myproj-web-1",
+            }
+        ])
+        stats_payload = json.dumps(
+            {
+                "ID": "abcdef123456",
+                "Name": "myproj-web-1",
+                "CPUPerc": "2.5%",
+                "MemPerc": "4.0%",
+            }
+        )
+
+        with patch("aa_admin_toolkit.actions._run_subprocess") as run_subprocess:
+            run_subprocess.side_effect = [
+                self._cp(["docker", "compose", "ps", "--format", "json"], ps_payload),
+                self._cp(["docker", "compose", "stats", "--no-stream", "--format", "json"], stats_payload),
+            ]
+            snapshot = actions.docker_service_snapshot()
+
+        self.assertEqual(len(snapshot), 1)
+        self.assertEqual(snapshot[0]["service"], "web")
+        self.assertEqual(snapshot[0]["cpu"], "2.5%")
+        self.assertEqual(snapshot[0]["memory"], "4.0%")
+
+    @patch("aa_admin_toolkit.actions.setting", side_effect=lambda name, default: ["requirements.txt"] if name == "AA_ADMIN_TOOLKIT_ALLOWED_EDITABLE_FILES" else default)
+    def test_allowed_editor_files_always_includes_local_py(self, _setting):
+        files = actions.allowed_editor_files()
+
+        self.assertIn("requirements.txt", files)
+        self.assertIn("local.py", files)
+
+    @patch("aa_admin_toolkit.actions.allow_view_non_superusers", return_value=False)
+    def test_superuser_has_no_implicit_view_access(self, _allow_view_non_superusers):
+        user = _FakeUser(is_superuser=True)
+
+        self.assertFalse(actions.user_can_view(user))
+
+    @patch("aa_admin_toolkit.actions.allow_execute_non_superusers", return_value=False)
+    def test_superuser_has_no_implicit_execute_access(self, _allow_execute_non_superusers):
+        user = _FakeUser(is_superuser=True)
+
+        self.assertFalse(actions.user_can_execute(user))
 
 
 if __name__ == "__main__":

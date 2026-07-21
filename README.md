@@ -28,7 +28,7 @@ python manage.py collectstatic
 4. Restart Celery workers and Gunicorn.
 
 ## Usage
-By default, only `is_superuser` users can view and execute actions in the Admin Toolkit.
+Access is controlled entirely by the toolkit settings below. There is no automatic superuser bypass, so every viewer or operator must match the configured access rules.
 The toolkit always keeps `local.py` editable so you can define Alliance Auth access settings there.
 
 Example `local.py` setup:
@@ -44,6 +44,8 @@ AA_ADMIN_TOOLKIT_ALLOW_EXECUTE_NON_SUPERUSERS = False
 AA_ADMIN_TOOLKIT_VIEW_ALLOWED_USERS = ["viewer1", "viewer2"]
 AA_ADMIN_TOOLKIT_EXECUTE_ALLOWED_USERS = ["operator1"]
 ```
+
+If you want a superuser to access the toolkit, add that account to the same user, group, permission, or character allowlists.
 
 ## Settings
 
