@@ -431,25 +431,33 @@ def python_executable() -> str:
     return sys.executable
 
 
+def _scope_has_explicit_access_rules(*rule_sets: set[str]) -> bool:
+    return any(bool(rule_set) for rule_set in rule_sets)
+
+
 def user_can_view(user) -> bool:
     if not user or not user.is_authenticated:
         return False
 
-    if not allow_view_non_superusers():
+    view_users = allowed_view_users()
+    view_permissions = allowed_view_permissions()
+    view_groups = allowed_view_groups()
+    view_eve_ids = allowed_view_eve_character_ids()
+    view_eve_names = allowed_view_eve_character_names()
+
+    if not allow_view_non_superusers() and not _scope_has_explicit_access_rules(view_users, view_permissions, view_groups, view_eve_ids, view_eve_names):
         return False
 
-    if user.username in allowed_view_users():
+    if user.username in view_users:
         return True
 
-    view_permissions = allowed_view_permissions()
     if view_permissions and any(user.has_perm(permission) for permission in view_permissions):
         return True
 
-    view_groups = allowed_view_groups()
     if view_groups and user.groups.filter(name__in=view_groups).exists():
         return True
 
-    if _user_matches_eve_character_allowlist(user, allowed_view_eve_character_ids(), allowed_view_eve_character_names()):
+    if _user_matches_eve_character_allowlist(user, view_eve_ids, view_eve_names):
         return True
 
     return False
@@ -459,21 +467,25 @@ def user_can_execute(user) -> bool:
     if not user or not user.is_authenticated:
         return False
 
-    if not allow_execute_non_superusers():
+    execute_users = allowed_execute_users()
+    execute_permissions = allowed_execute_permissions()
+    execute_groups = allowed_execute_groups()
+    execute_eve_ids = allowed_execute_eve_character_ids()
+    execute_eve_names = allowed_execute_eve_character_names()
+
+    if not allow_execute_non_superusers() and not _scope_has_explicit_access_rules(execute_users, execute_permissions, execute_groups, execute_eve_ids, execute_eve_names):
         return False
 
-    if user.username in allowed_execute_users():
+    if user.username in execute_users:
         return True
 
-    execute_permissions = allowed_execute_permissions()
     if execute_permissions and any(user.has_perm(permission) for permission in execute_permissions):
         return True
 
-    execute_groups = allowed_execute_groups()
     if execute_groups and user.groups.filter(name__in=execute_groups).exists():
         return True
 
-    if _user_matches_eve_character_allowlist(user, allowed_execute_eve_character_ids(), allowed_execute_eve_character_names()):
+    if _user_matches_eve_character_allowlist(user, execute_eve_ids, execute_eve_names):
         return True
 
     return False

@@ -58,11 +58,28 @@ class _FakeGroups:
 
 
 class _FakeUser:
-    def __init__(self, *, username="admin", is_authenticated=True, is_superuser=False):
+    def __init__(self, *, username="admin", is_authenticated=True, is_superuser=False, character_id=None, character_name=None):
         self.username = username
         self.is_authenticated = is_authenticated
         self.is_superuser = is_superuser
         self.groups = _FakeGroups()
+        self.character_ownerships = types.SimpleNamespace(
+            select_related=lambda *_args, **_kwargs: types.SimpleNamespace(
+                all=lambda: [
+                    types.SimpleNamespace(
+                        character=types.SimpleNamespace(
+                            character_id=character_id,
+                            character_name=character_name,
+                        )
+                    )
+                ] if character_id is not None or character_name is not None else []
+            )
+        )
+        self.profile = types.SimpleNamespace(
+            main_character=types.SimpleNamespace(character_id=character_id, character_name=character_name)
+            if character_id is not None or character_name is not None
+            else None
+        )
 
     def has_perm(self, _permission):
         return False
@@ -250,6 +267,25 @@ class DockerServiceSnapshotMappingTests(unittest.TestCase):
         user = _FakeUser(is_superuser=True)
 
         self.assertFalse(actions.user_can_execute(user))
+
+    @patch("aa_admin_toolkit.actions.allow_view_non_superusers", return_value=False)
+    @patch("aa_admin_toolkit.actions.allowed_view_eve_character_names", return_value={"Pilot Example"})
+    @patch("aa_admin_toolkit.actions.allowed_view_eve_character_ids", return_value=set())
+    @patch("aa_admin_toolkit.actions.allowed_view_groups", return_value=set())
+    @patch("aa_admin_toolkit.actions.allowed_view_permissions", return_value=set())
+    @patch("aa_admin_toolkit.actions.allowed_view_users", return_value=set())
+    def test_eve_character_allowlist_grants_view_access_without_toggle(
+        self,
+        _allowed_view_users,
+        _allowed_view_permissions,
+        _allowed_view_groups,
+        _allowed_view_eve_ids,
+        _allowed_view_eve_names,
+        _allow_view_non_superusers,
+    ):
+        user = _FakeUser(username="pilot", character_name="Pilot Example")
+
+        self.assertTrue(actions.user_can_view(user))
 
 
 if __name__ == "__main__":
