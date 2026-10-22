@@ -1,0 +1,132 @@
+/* Admin Toolkit. Built on Bootstrap 5 variables so it follows the active Alliance Auth theme. */
+
+.aat .min-w-0 {
+    min-width: 0;
+}
+
+.aat .aat-metric-label {
+    color: var(--bs-secondary-color);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.aat .aat-metric-value {
+    font-size: 1.75rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.aat .aat-metric-icon {
+    align-items: center;
+    background-color: rgba(var(--bs-emphasis-color-rgb), 0.08);
+    border-radius: var(--bs-border-radius);
+    color: var(--bs-emphasis-color);
+    display: inline-flex;
+    height: 2.25rem;
+    justify-content: center;
+    width: 2.25rem;
+}
+
+.aat .progress.aat-thin {
+    height: 0.375rem;
+}
+
+.aat .progress-bar {
+    transition: width 0.6s ease;
+}
+
+.aat .aat-dot {
+    border-radius: 50%;
+    display: inline-block;
+    flex: none;
+    height: 0.625rem;
+    width: 0.625rem;
+}
+
+.aat .aat-live-dot {
+    animation: aat-pulse 2s ease-in-out infinite;
+}
+
+@keyframes aat-pulse {
+    50% {
+        opacity: 0.35;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aat .aat-live-dot {
+        animation: none;
+    }
+}
+
+.aat .aat-service {
+    border: var(--bs-border-width) solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius-lg);
+    height: 100%;
+    padding: 0.75rem 1rem;
+}
+
+.aat .aat-service-stats {
+    font-variant-numeric: tabular-nums;
+}
+
+.aat .aat-tabs .nav-link {
+    text-align: start;
+    white-space: nowrap;
+}
+
+.aat .aat-tabs .nav-link:not(.active) {
+    color: var(--bs-body-color);
+}
+
+.aat .aat-tabs .nav-link:not(.active):hover {
+    background-color: rgba(var(--bs-emphasis-color-rgb), 0.08);
+}
+
+@media (max-width: 991.98px) {
+    .aat .aat-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding-bottom: 0.25rem;
+    }
+}
+
+.aat .aat-command-preview {
+    max-width: 28rem;
+}
+
+.aat .aat-path {
+    max-width: 32rem;
+}
+
+.aat .aat-editor {
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    min-height: 24rem;
+    resize: vertical;
+    tab-size: 4;
+}
+
+.aat .aat-terminal {
+    background-color: #0f1419;
+    border-bottom-left-radius: inherit;
+    border-bottom-right-radius: inherit;
+    color: #d6deeb;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    margin: 0;
+    max-height: 70vh;
+    overflow: auto;
+    padding: 1rem 1.25rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.aat .aat-badge-spinner {
+    --bs-spinner-width: 0.7em;
+    --bs-spinner-height: 0.7em;
+    --bs-spinner-border-width: 0.15em;
+}

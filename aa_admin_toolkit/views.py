@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import user_passes_test
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 from .models import CommandLog
 from .tasks import run_action_task
@@ -21,6 +22,11 @@ from .actions import (
     is_supported_action,
     allowed_manage_commands,
     send_audit_webhook,
+    maintenance_sentinel_path,
+    discord_service_installed,
+    docker_full_restart_enabled,
+    editor_file_path,
+    DISCORD_ACTION_KEYS,
 )
 
 
@@ -48,16 +54,29 @@ DOCKER_REQUIRED_ACTIONS = {
 }
 
 
+RECENT_LOG_LIMIT = 15
+
+
 def toolkit_access_check(user):
-    return user_can_view(user)
+    if user_can_view(user):
+        return True
+    # Signed-in users without access get a 403 instead of a redirect to the
+    # login page, which would just send them straight back here.
+    if user.is_authenticated:
+        raise PermissionDenied
+    return False
+
+
+def _recent_logs():
+    return CommandLog.objects.select_related("executed_by")[:RECENT_LOG_LIMIT]
+
 
 @user_passes_test(toolkit_access_check)
 def dashboard(request):
-    recent_logs = CommandLog.objects.all()[:10]
-    
     return render(request, "aa_admin_toolkit/dashboard.html", {
-        "recent_logs": recent_logs,
-        "operations_url": "aa_admin_toolkit:operations",
+        "recent_logs": _recent_logs(),
+        "show_docker": docker_enabled() or bool(allowed_docker_services()),
+        "maintenance_enabled": maintenance_mode_enabled(),
     })
 
 @user_passes_test(toolkit_access_check)
@@ -80,6 +99,10 @@ def operations(request):
 
         if action_key in DOCKER_REQUIRED_ACTIONS and not docker_enabled():
             messages.error(request, "Docker is disabled, so this action cannot run.")
+            return redirect("aa_admin_toolkit:operations")
+
+        if action_key in DISCORD_ACTION_KEYS and not discord_service_installed():
+            messages.error(request, "The Alliance Auth Discord service is not installed, so there is nothing to sync.")
             return redirect("aa_admin_toolkit:operations")
 
         if action_key == "docker_full_restart":
@@ -210,8 +233,7 @@ def operations(request):
             executed_by=request.user,
         )
         run_action_task.delay(log.id, action_key, payload)
-        messages.success(request, f"Action '{action_key}' started in background.")
-        return redirect("aa_admin_toolkit:operations")
+        return redirect("aa_admin_toolkit:log_detail", log_id=log.id)
 
     selected_file = request.GET.get("file", "").strip()
     if selected_file not in allowed_editor_files():
@@ -219,27 +241,40 @@ def operations(request):
 
     file_content = read_editor_file(selected_file) if selected_file else ""
 
-    recent_logs = CommandLog.objects.all()[:10]
-
     return render(request, "aa_admin_toolkit/operations.html", {
-        "recent_logs": recent_logs,
+        "recent_logs": _recent_logs(),
         "docker_enabled": docker_enabled(),
+        "full_restart_enabled": docker_full_restart_enabled(),
         "docker_services": allowed_docker_services(),
         "editable_files": allowed_editor_files(),
         "selected_file": selected_file,
+        "selected_file_path": str(editor_file_path(selected_file)) if selected_file else "",
         "file_content": file_content,
         "backup_exists": editor_backup_exists(selected_file) if selected_file else False,
         "maintenance_enabled": maintenance_mode_enabled(),
+        "maintenance_path": str(maintenance_sentinel_path()),
+        "discord_installed": discord_service_installed(),
         "manage_commands": allowed_manage_commands(),
         "can_execute": can_execute,
     })
 
 @user_passes_test(toolkit_access_check)
 def log_detail(request, log_id):
-    log = get_object_or_404(CommandLog, id=log_id)
+    log = get_object_or_404(CommandLog.objects.select_related("executed_by"), id=log_id)
+    duration = None
+    if log.started_at and log.finished_at:
+        duration = max((log.finished_at - log.started_at).total_seconds(), 0)
     return render(request, "aa_admin_toolkit/log_detail.html", {
-        "log": log
+        "log": log,
+        "duration": duration,
+        "is_active": log.status in {"PENDING", "RUNNING"},
     })
+
+
+@user_passes_test(toolkit_access_check)
+def log_status(request, log_id):
+    log = get_object_or_404(CommandLog, id=log_id)
+    return JsonResponse({"status": log.status})
 
 from django.http import JsonResponse
 from django.db import connection
@@ -248,11 +283,19 @@ from allianceauth.eveonline.models import EveCharacter
 import time
 import os
 
+_cpu_primed = False
+
 @user_passes_test(toolkit_access_check)
 def resource_stats(request):
     try:
         import psutil
-        cpu = psutil.cpu_percent(interval=None)
+        global _cpu_primed
+        if _cpu_primed:
+            cpu = psutil.cpu_percent(interval=None)
+        else:
+            # A non-blocking first call in a process always reports 0.0, so sample briefly once.
+            cpu = psutil.cpu_percent(interval=0.2)
+            _cpu_primed = True
         mem = psutil.virtual_memory()
         mem_percent = mem.percent
         mem_used = round(mem.used / (1024**3), 2)

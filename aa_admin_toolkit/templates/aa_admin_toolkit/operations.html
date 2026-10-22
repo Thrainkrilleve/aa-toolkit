@@ -1,389 +1,457 @@
 {% extends "allianceauth/base-bs5.html" %}
-{% load i18n %}
+{% load i18n static %}
+
 {% block page_title %}{% translate "Admin Toolkit Operations" %}{% endblock page_title %}
+{% block header_nav_brand %}{% translate "Admin Toolkit" %}{% endblock header_nav_brand %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'aa_admin_toolkit/css/admin_toolkit.css' %}">
+{% endblock extra_css %}
 
 {% block content %}
-<div class="col-lg-12">
-    <div class="row">
-        <div class="col-md-12 mb-3" style="margin-bottom: 20px;">
-            <a href="{% url 'aa_admin_toolkit:dashboard' %}" class="btn btn-default">&larr; Back to Dashboard</a>
-        </div>
-    </div>
+<div class="aat" data-aat-operations>
 
-    {% if messages %}
-    <div class="row">
-        <div class="col-md-12">
-            {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible" role="alert">
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                {{ message }}
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
+    {% translate "Run maintenance tasks. Each run is logged with its full output." as subtitle %}
+    {% include "aa_admin_toolkit/partials/header.html" with active="operations" subtitle=subtitle %}
 
     {% if not can_execute %}
-    <div class="row">
-        <div class="col-md-12">
-            <div class="alert alert-warning" role="alert">
-                You currently have read-only access. Monitoring and logs are available, but action execution is disabled for your account.
-            </div>
+        <div class="alert alert-info d-flex align-items-center gap-3" role="status">
+            <i class="fa-solid fa-eye fa-lg" aria-hidden="true"></i>
+            <div>{% translate "You have read-only access. You can browse everything here, but running actions is disabled for your account." %}</div>
         </div>
-    </div>
     {% endif %}
 
-    <div class="row">
-        <div class="col-md-4">
-            <div class="panel panel-primary">
-                <div class="panel-heading"><h3 class="panel-title">Django Commands</h3></div>
-                <div class="panel-body">
-                    <form method="POST">
-                        {% csrf_token %}
-                        <button type="submit" name="action" value="django_check" class="btn btn-primary btn-block" style="margin-bottom: 10px;">Run System Check</button>
-                        <button type="submit" name="action" value="django_showmigrations" class="btn btn-primary btn-block" style="margin-bottom: 10px;">Show Migrations</button>
-                        <button type="submit" name="action" value="django_clearsessions" class="btn btn-warning btn-block" style="margin-bottom: 10px;">Clear Expired Sessions</button>
-                    </form>
-                </div>
+    <div class="row g-4">
+        <div class="col-lg-3">
+            <div class="nav nav-pills aat-tabs flex-lg-column gap-1" role="tablist" aria-orientation="vertical">
+                <button class="nav-link active" id="aat-tab-commands" data-bs-toggle="pill" data-bs-target="#aat-commands" data-aat-tab="commands" type="button" role="tab" aria-controls="aat-commands" aria-selected="true">
+                    <i class="fa-solid fa-terminal fa-fw me-2" aria-hidden="true"></i>{% translate "Commands" %}
+                </button>
+                <button class="nav-link" id="aat-tab-maintenance" data-bs-toggle="pill" data-bs-target="#aat-maintenance" data-aat-tab="maintenance" type="button" role="tab" aria-controls="aat-maintenance" aria-selected="false">
+                    <i class="fa-solid fa-person-digging fa-fw me-2" aria-hidden="true"></i>{% translate "Maintenance" %}
+                </button>
+                {% if docker_enabled %}
+                    <button class="nav-link" id="aat-tab-docker" data-bs-toggle="pill" data-bs-target="#aat-docker" data-aat-tab="docker" type="button" role="tab" aria-controls="aat-docker" aria-selected="false">
+                        <i class="fa-brands fa-docker fa-fw me-2" aria-hidden="true"></i>{% translate "Docker" %}
+                    </button>
+                {% endif %}
+                {% if discord_installed %}
+                    <button class="nav-link" id="aat-tab-discord" data-bs-toggle="pill" data-bs-target="#aat-discord" data-aat-tab="discord" type="button" role="tab" aria-controls="aat-discord" aria-selected="false">
+                        <i class="fa-brands fa-discord fa-fw me-2" aria-hidden="true"></i>{% translate "Discord" %}
+                    </button>
+                {% endif %}
+                <button class="nav-link" id="aat-tab-packages" data-bs-toggle="pill" data-bs-target="#aat-packages" data-aat-tab="packages" type="button" role="tab" aria-controls="aat-packages" aria-selected="false">
+                    <i class="fa-solid fa-cubes fa-fw me-2" aria-hidden="true"></i>{% translate "Packages" %}
+                </button>
+                <button class="nav-link" id="aat-tab-files" data-bs-toggle="pill" data-bs-target="#aat-files" data-aat-tab="files" type="button" role="tab" aria-controls="aat-files" aria-selected="false">
+                    <i class="fa-solid fa-file-pen fa-fw me-2" aria-hidden="true"></i>{% translate "Files" %}
+                </button>
+                <button class="nav-link" id="aat-tab-history" data-bs-toggle="pill" data-bs-target="#aat-history" data-aat-tab="history" type="button" role="tab" aria-controls="aat-history" aria-selected="false">
+                    <i class="fa-solid fa-clock-rotate-left fa-fw me-2" aria-hidden="true"></i>{% translate "History" %}
+                </button>
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="panel panel-warning">
-                <div class="panel-heading"><h3 class="panel-title">Alliance Auth Maintenance</h3></div>
-                <div class="panel-body">
-                    <form method="POST">
-                        {% csrf_token %}
-                        <button type="submit" name="action" value="auth_check" class="btn btn-warning btn-block" style="margin-bottom: 10px;">auth check</button>
-                        <button type="submit" name="action" value="auth_showmigrations" class="btn btn-warning btn-block" style="margin-bottom: 10px;">auth showmigrations</button>
-                        <button type="submit" name="action" value="auth_migrate" class="btn btn-warning btn-block" style="margin-bottom: 10px;">auth migrate</button>
-                        <button type="submit" name="action" value="auth_collectstatic" class="btn btn-warning btn-block" style="margin-bottom: 10px;">auth collectstatic</button>
-                    </form>
+        <div class="col-lg-9">
+            <div class="tab-content">
+
+                {# ---------------------------------------------------------------- Commands #}
+                <div class="tab-pane fade show active" id="aat-commands" role="tabpanel" aria-labelledby="aat-tab-commands" tabindex="0">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h2 class="h6 mb-0">{% translate "Django" %}</h2>
+                            <div class="small text-body-secondary">{% translate "Runs in the Celery worker that picks up the task." %}</div>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            {% include "aa_admin_toolkit/partials/action_row.html" with action="django_check" title=_("System check") description=_("Looks for configuration problems with manage.py check.") %}
+                            {% include "aa_admin_toolkit/partials/action_row.html" with action="django_showmigrations" title=_("Show migrations") description=_("Lists every migration and whether it has been applied.") %}
+                            {% include "aa_admin_toolkit/partials/action_row.html" with action="django_clearsessions" title=_("Clear expired sessions") description=_("Deletes expired login sessions from the database.") variant="outline-warning" icon="broom" confirm=_("Clear expired sessions from the database?") %}
+                        </div>
+                    </div>
+
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h2 class="h6 mb-0">{% translate "Alliance Auth container" %}</h2>
+                            <div class="small text-body-secondary">{% translate "Runs manage.py inside the app container with docker compose exec." %}</div>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            {% include "aa_admin_toolkit/partials/action_row.html" with action="auth_check" title=_("System check") description=_("manage.py check, inside the app container.") needs_docker=True %}
+                            {% include "aa_admin_toolkit/partials/action_row.html" with action="auth_showmigrations" title=_("Show migrations") description=_("manage.py showmigrations, inside the app container.") needs_docker=True %}
+                            {% include "aa_admin_toolkit/partials/action_row.html" with action="auth_migrate" title=_("Run migrations") description=_("Applies pending database migrations. Take a backup first.") variant="outline-warning" icon="database" needs_docker=True confirm=_("Apply all pending database migrations now?") %}
+                            {% include "aa_admin_toolkit/partials/action_row.html" with action="auth_collectstatic" title=_("Collect static files") description=_("Copies static files so new or updated apps render correctly.") variant="outline-warning" icon="file-import" needs_docker=True confirm=_("Run collectstatic now?") %}
+                        </div>
+                    </div>
 
                     {% if manage_commands %}
-                    <hr>
-                    <h4>Third-Party App Commands</h4>
-                    <p class="text-muted">These commands are allowlisted in settings and run inside the app container.</p>
-                    {% for item in manage_commands %}
-                    <form method="POST" style="margin-bottom: 10px;">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="manage_command">
-                        <input type="hidden" name="command" value="{{ item.command }}">
-                        {% for arg in item.args %}
-                        <input type="hidden" name="args" value="{{ arg }}">
-                        {% endfor %}
-                        <button type="submit" class="btn btn-warning btn-block">{{ item.label }}</button>
-                    </form>
-                    {% endfor %}
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h2 class="h6 mb-0">{% translate "Allowlisted management commands" %}</h2>
+                                <div class="small text-body-secondary">{% translate "Configured in AA_ADMIN_TOOLKIT_ALLOWED_MANAGE_COMMANDS. They run inside the app container." %}</div>
+                            </div>
+                            <div class="list-group list-group-flush">
+                                {% for item in manage_commands %}
+                                    <form method="post" class="list-group-item d-flex flex-column flex-sm-row align-items-sm-center gap-2 gap-sm-3 py-3">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="command" value="{{ item.command }}">
+                                        {% for arg in item.args %}<input type="hidden" name="args" value="{{ arg }}">{% endfor %}
+                                        <div class="flex-grow-1">
+                                            <div class="fw-semibold">
+                                                {{ item.label }}
+                                                {% if not docker_enabled %}<span class="badge text-bg-secondary fw-normal ms-1">{% translate "Needs Docker" %}</span>{% endif %}
+                                            </div>
+                                            <code class="small text-body-secondary">manage.py {{ item.command }}{% for arg in item.args %} {{ arg }}{% endfor %}</code>
+                                        </div>
+                                        <button type="submit" name="action" value="manage_command"
+                                                class="btn btn-sm btn-outline-primary text-nowrap align-self-start align-self-sm-center"
+                                                data-aat-confirm="{% blocktranslate with label=item.label %}Run “{{ label }}”?{% endblocktranslate %}"
+                                                {% if not can_execute or not docker_enabled %}disabled{% endif %}>
+                                            <i class="fa-solid fa-play me-1" aria-hidden="true"></i>{% translate "Run" %}
+                                        </button>
+                                    </form>
+                                {% endfor %}
+                            </div>
+                        </div>
                     {% endif %}
-                </div>
-            </div>
-        </div>
 
-        <div class="col-md-4">
-            <div class="panel panel-default">
-                <div class="panel-heading"><h3 class="panel-title">Maintenance Mode</h3></div>
-                <div class="panel-body">
-                    <p>
-                        Current state:
-                        {% if maintenance_enabled %}
-                        <span class="label label-warning">Enabled</span>
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="h6 mb-0">{% translate "Diagnostics" %}</h2>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            {% include "aa_admin_toolkit/partials/action_row.html" with action="celery_status" title=_("Celery worker status") description=_("Pings every Celery worker and lists the ones that answer.") icon="heart-pulse" %}
+                            {% include "aa_admin_toolkit/partials/action_row.html" with action="pip_list" title=_("Installed packages") description=_("pip list, inside the app container.") icon="list" needs_docker=True %}
+                        </div>
+                    </div>
+                </div>
+
+                {# ---------------------------------------------------------------- Maintenance #}
+                <div class="tab-pane fade" id="aat-maintenance" role="tabpanel" aria-labelledby="aat-tab-maintenance" tabindex="0">
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                            <h2 class="h6 mb-0">{% translate "Maintenance mode" %}</h2>
+                            {% if maintenance_enabled %}
+                                <span class="badge rounded-pill text-bg-warning">{% translate "On" %}</span>
+                            {% else %}
+                                <span class="badge rounded-pill text-bg-secondary">{% translate "Off" %}</span>
+                            {% endif %}
+                        </div>
+                        <form method="post" class="card-body d-flex flex-column flex-md-row align-items-md-center gap-3">
+                            {% csrf_token %}
+                            <div class="flex-grow-1 small">
+                                <p class="mb-1">{% translate "Creates or removes a sentinel file:" %} <code>{{ maintenance_path }}</code></p>
+                                <p class="text-body-secondary mb-0">{% translate "The toolkit does not block traffic by itself. Your reverse proxy or a middleware has to check for this file." %}</p>
+                            </div>
+                            {% if maintenance_enabled %}
+                                <button type="submit" name="action" value="maintenance_disable" class="btn btn-success text-nowrap" {% if not can_execute %}disabled{% endif %}>
+                                    <i class="fa-solid fa-toggle-off me-1" aria-hidden="true"></i>{% translate "Turn off" %}
+                                </button>
+                            {% else %}
+                                <button type="submit" name="action" value="maintenance_enable" class="btn btn-warning text-nowrap"
+                                        data-aat-confirm="{% translate 'Turn on maintenance mode?' %}" {% if not can_execute %}disabled{% endif %}>
+                                    <i class="fa-solid fa-toggle-on me-1" aria-hidden="true"></i>{% translate "Turn on" %}
+                                </button>
+                            {% endif %}
+                        </form>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="h6 mb-0">{% translate "Database" %}</h2>
+                        </div>
+                        <div class="list-group list-group-flush">
+                            {% include "aa_admin_toolkit/partials/action_row.html" with action="db_backup" title=_("Back up the database") description=_("Runs the configured dump command in the database container and saves a timestamped .sql file on the server.") icon="floppy-disk" button=_("Back up") needs_docker=True confirm=_("Start a database backup now?") %}
+                        </div>
+                    </div>
+                </div>
+
+                {# ---------------------------------------------------------------- Docker #}
+                {% if docker_enabled %}
+                    <div class="tab-pane fade" id="aat-docker" role="tabpanel" aria-labelledby="aat-tab-docker" tabindex="0">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h2 class="h6 mb-0">{% translate "Services" %}</h2>
+                                <div class="small text-body-secondary">{% translate "Only services in AA_ADMIN_TOOLKIT_ALLOWED_DOCKER_SERVICES are listed." %}</div>
+                            </div>
+                            <form method="post" class="card-body">
+                                {% csrf_token %}
+                                <label for="aat-docker-service" class="form-label">{% translate "Service" %}</label>
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-md-5 col-xl-4">
+                                        <select id="aat-docker-service" name="service" class="form-select" required>
+                                            {% for service in docker_services %}
+                                                <option value="{{ service }}">{{ service }}</option>
+                                            {% empty %}
+                                                <option value="">{% translate "No services allowlisted" %}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-md-7 col-xl-8 d-flex flex-wrap gap-2">
+                                        <button type="submit" name="action" value="docker_restart_service" class="btn btn-outline-warning"
+                                                data-aat-confirm="{% translate 'Restart {service}?' %}" {% if not can_execute %}disabled{% endif %}>
+                                            <i class="fa-solid fa-rotate me-1" aria-hidden="true"></i>{% translate "Restart" %}
+                                        </button>
+                                        <button type="submit" name="action" value="docker_up_service" class="btn btn-outline-primary"
+                                                data-aat-confirm="{% translate 'Start {service} (docker compose up -d)?' %}" {% if not can_execute %}disabled{% endif %}>
+                                            <i class="fa-solid fa-play me-1" aria-hidden="true"></i>{% translate "Start" %}
+                                        </button>
+                                        <button type="submit" name="action" value="docker_pull_service" class="btn btn-outline-primary"
+                                                data-aat-confirm="{% translate 'Pull the latest image for {service} and recreate it?' %}" {% if not can_execute %}disabled{% endif %}>
+                                            <i class="fa-solid fa-cloud-arrow-down me-1" aria-hidden="true"></i>{% translate "Pull and recreate" %}
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                            <div class="list-group list-group-flush border-top">
+                                {% include "aa_admin_toolkit/partials/action_row.html" with action="docker_status" title=_("Compose status") description=_("docker compose ps for the whole project.") icon="list-check" %}
+                            </div>
+                        </div>
+
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h2 class="h6 mb-0">{% translate "Logs" %}</h2>
+                            </div>
+                            <form method="post" class="card-body">
+                                {% csrf_token %}
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-5 col-xl-4">
+                                        <label for="aat-logs-service" class="form-label">{% translate "Service" %}</label>
+                                        <select id="aat-logs-service" name="service" class="form-select" required>
+                                            {% for service in docker_services %}
+                                                <option value="{{ service }}">{{ service }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-6 col-md-3 col-xl-2">
+                                        <label for="aat-logs-tail" class="form-label">{% translate "Lines" %}</label>
+                                        <input id="aat-logs-tail" name="tail" type="number" min="1" max="1000" value="100" class="form-control">
+                                    </div>
+                                    <div class="col-6 col-md-auto">
+                                        <button type="submit" name="action" value="docker_logs_service" class="btn btn-outline-primary w-100" {% if not can_execute %}disabled{% endif %}>
+                                            <i class="fa-solid fa-scroll me-1" aria-hidden="true"></i>{% translate "View logs" %}
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div class="card border-danger">
+                            <div class="card-header text-danger">
+                                <h2 class="h6 mb-0"><i class="fa-solid fa-triangle-exclamation me-2" aria-hidden="true"></i>{% translate "Danger zone" %}</h2>
+                            </div>
+                            {% if full_restart_enabled %}
+                                <form method="post" class="card-body">
+                                    {% csrf_token %}
+                                    <p class="mb-3">
+                                        <strong>{% translate "Full stack restart" %}</strong>
+                                        <span class="text-body-secondary">{% translate "runs docker compose down and then up -d. The whole site, this page included, goes offline until the containers come back." %}</span>
+                                    </p>
+                                    <div class="form-check mb-3">
+                                        <input class="form-check-input" type="checkbox" name="confirm_full_restart" value="1" id="aat-confirm-full-restart" required>
+                                        <label class="form-check-label" for="aat-confirm-full-restart">{% translate "I understand this stops and recreates every container." %}</label>
+                                    </div>
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-6 col-xl-4">
+                                            <label for="aat-full-restart-phrase" class="form-label">{% blocktranslate %}Type <code>RESTART STACK</code> to confirm{% endblocktranslate %}</label>
+                                            <input id="aat-full-restart-phrase" type="text" name="confirm_full_restart_phrase" class="form-control" autocomplete="off" pattern="\s*[Rr][Ee][Ss][Tt][Aa][Rr][Tt] [Ss][Tt][Aa][Cc][Kk]\s*" required>
+                                        </div>
+                                        <div class="col-md-auto">
+                                            <button type="submit" name="action" value="docker_full_restart" class="btn btn-danger" {% if not can_execute %}disabled{% endif %}>
+                                                <i class="fa-solid fa-power-off me-1" aria-hidden="true"></i>{% translate "Restart the full stack" %}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </form>
+                            {% else %}
+                                <div class="card-body text-body-secondary small">
+                                    {% blocktranslate %}Full stack restart is turned off. Set <code>AA_ADMIN_TOOLKIT_ENABLE_FULL_STACK_RESTART = True</code> to allow it.{% endblocktranslate %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+
+                {# ---------------------------------------------------------------- Discord #}
+                {% if discord_installed %}
+                    <div class="tab-pane fade" id="aat-discord" role="tabpanel" aria-labelledby="aat-tab-discord" tabindex="0">
+                        <div class="card">
+                            <div class="card-header">
+                                <h2 class="h6 mb-0">{% translate "Discord sync" %}</h2>
+                                <div class="small text-body-secondary">{% translate "Queues the Alliance Auth Discord service's bulk tasks. Progress shows up in the worker logs." %}</div>
+                            </div>
+                            <div class="list-group list-group-flush">
+                                {% include "aa_admin_toolkit/partials/action_row.html" with action="discord_sync_all" title=_("Sync everything") description=_("Roles, nicknames and usernames for every linked user.") icon="arrows-rotate" confirm=_("Queue a full Discord sync for every user?") %}
+                                {% include "aa_admin_toolkit/partials/action_row.html" with action="discord_sync_groups" title=_("Sync roles") description=_("Updates Discord roles from Alliance Auth groups and states.") icon="users" %}
+                                {% include "aa_admin_toolkit/partials/action_row.html" with action="discord_sync_nicknames" title=_("Sync nicknames") description=_("Resets nicknames to match each user's main character.") icon="signature" %}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                {# ---------------------------------------------------------------- Packages #}
+                <div class="tab-pane fade" id="aat-packages" role="tabpanel" aria-labelledby="aat-tab-packages" tabindex="0">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="h6 mb-0">{% translate "Python packages" %}</h2>
+                            <div class="small text-body-secondary">{% translate "Runs pip inside the app container. Treat package changes as maintenance and follow up with a restart." %}</div>
+                        </div>
+                        {% if not docker_enabled %}
+                            <div class="card-body">
+                                <div class="alert alert-secondary mb-0">
+                                    {% blocktranslate %}Package actions run inside the app container, so they need <code>AA_ADMIN_TOOLKIT_ENABLE_DOCKER = True</code>.{% endblocktranslate %}
+                                </div>
+                            </div>
                         {% else %}
-                        <span class="label label-success">Disabled</span>
+                            <form method="post" data-aat-conditional>
+                                {% csrf_token %}
+                                <fieldset class="card-body" {% if not can_execute %}disabled{% endif %}>
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label for="aat-package-action" class="form-label">{% translate "Action" %}</label>
+                                            <select id="aat-package-action" name="action" class="form-select">
+                                                <option value="pip_install">{% translate "Install" %}</option>
+                                                <option value="pip_upgrade">{% translate "Upgrade" %}</option>
+                                                <option value="pip_uninstall">{% translate "Uninstall" %}</option>
+                                                <option value="pip_show">{% translate "Show details" %}</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label for="aat-package-name" class="form-label">{% translate "Package" %}</label>
+                                            <input id="aat-package-name" name="package" type="text" class="form-control" placeholder="allianceauth-afat" autocomplete="off" spellcheck="false" required>
+                                        </div>
+                                        <div class="col-md-3" data-aat-when="action=pip_install pip_upgrade">
+                                            <label for="aat-package-version" class="form-label">{% translate "Exact version" %} <span class="text-body-secondary fw-normal">{% translate "(optional)" %}</span></label>
+                                            <input id="aat-package-version" name="version" type="text" class="form-control" placeholder="1.2.3" autocomplete="off" spellcheck="false">
+                                        </div>
+                                        <div class="col-md-6" data-aat-when="action=pip_install pip_upgrade pip_uninstall">
+                                            <label for="aat-package-followup" class="form-label">{% translate "Afterwards" %}</label>
+                                            <select id="aat-package-followup" name="followup" class="form-select">
+                                                <option value="">{% translate "Do nothing" %}</option>
+                                                <option value="restart_app">{% translate "Restart the app service" %}</option>
+                                                <option value="restart_celery_workers">{% translate "Restart the Celery worker service" %}</option>
+                                                <option value="restart_selected_service">{% translate "Restart a service I choose" %}</option>
+                                                <option value="full_stack_recreate">{% translate "Full stack down/up" %}</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6" data-aat-when="action=pip_install pip_upgrade pip_uninstall;followup=restart_selected_service">
+                                            <label for="aat-package-followup-service" class="form-label">{% translate "Service to restart" %}</label>
+                                            <select id="aat-package-followup-service" name="followup_service" class="form-select">
+                                                {% for service in docker_services %}
+                                                    <option value="{{ service }}">{{ service }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="col-12" data-aat-when="action=pip_install pip_upgrade pip_uninstall">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="confirm_package_change" value="1" id="aat-confirm-package" data-aat-required>
+                                                <label class="form-check-label" for="aat-confirm-package">{% translate "I understand this changes the Python environment of the running site." %}</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-12" data-aat-when="action=pip_install pip_upgrade pip_uninstall;followup=full_stack_recreate">
+                                            <div class="border border-danger rounded p-3">
+                                                <div class="form-check mb-2">
+                                                    <input class="form-check-input" type="checkbox" name="confirm_followup_recreate" value="1" id="aat-confirm-recreate" data-aat-required>
+                                                    <label class="form-check-label" for="aat-confirm-recreate">{% translate "I understand the follow-up takes the whole stack down and back up." %}</label>
+                                                </div>
+                                                <label for="aat-recreate-phrase" class="form-label">{% blocktranslate %}Type <code>RECREATE STACK</code> to confirm{% endblocktranslate %}</label>
+                                                <input id="aat-recreate-phrase" type="text" name="confirm_followup_recreate_phrase" class="form-control" autocomplete="off" pattern="\s*[Rr][Ee][Cc][Rr][Ee][Aa][Tt][Ee] [Ss][Tt][Aa][Cc][Kk]\s*" data-aat-required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </fieldset>
+                                <div class="card-footer d-flex justify-content-end">
+                                    <button type="submit" class="btn btn-primary" {% if not can_execute %}disabled{% endif %}>
+                                        <i class="fa-solid fa-play me-1" aria-hidden="true"></i>{% translate "Run" %}
+                                    </button>
+                                </div>
+                            </form>
                         {% endif %}
-                    </p>
-                    <p>Uses a sentinel file so a middleware or proxy can block non-admin access during upgrades.</p>
-                    <form method="POST" class="form-inline" style="margin-bottom: 10px;">
-                        {% csrf_token %}
-                        <button type="submit" name="action" value="maintenance_enable" class="btn btn-warning btn-block">Enable Maintenance Mode</button>
-                    </form>
-                    <form method="POST" class="form-inline">
-                        {% csrf_token %}
-                        <button type="submit" name="action" value="maintenance_disable" class="btn btn-success btn-block">Disable Maintenance Mode</button>
-                    </form>
+                    </div>
                 </div>
-            </div>
-        </div>
 
-        <div class="col-md-4">
-            <div class="panel panel-success">
-                <div class="panel-heading"><h3 class="panel-title">Database Backup</h3></div>
-                <div class="panel-body">
-                    <p>Creates a timestamped backup file from the database container using the configured dump command.</p>
-                    <form method="POST">
-                        {% csrf_token %}
-                        <button type="submit" name="action" value="db_backup" class="btn btn-success btn-block">Run Backup</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-4">
-            <div class="panel panel-info">
-                <div class="panel-heading"><h3 class="panel-title">Discord Sync</h3></div>
-                <div class="panel-body">
-                    <form method="POST">
-                        {% csrf_token %}
-                        <button type="submit" name="action" value="discord_sync_all" class="btn btn-info btn-block" style="margin-bottom: 10px;">Sync Everything</button>
-                        <button type="submit" name="action" value="discord_sync_groups" class="btn btn-info btn-block" style="margin-bottom: 10px;">Sync Groups Only</button>
-                        <button type="submit" name="action" value="discord_sync_nicknames" class="btn btn-info btn-block" style="margin-bottom: 10px;">Sync Nicknames Only</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-md-12">
-            <div class="panel panel-danger">
-                <div class="panel-heading"><h3 class="panel-title">System Commands</h3></div>
-                <div class="panel-body">
-                    <form method="POST">
-                        {% csrf_token %}
-                        <button type="submit" name="action" value="pip_list" class="btn btn-danger btn-block" style="margin-bottom: 10px;">List Installed Packages</button>
-                        <button type="submit" name="action" value="celery_status" class="btn btn-danger btn-block" style="margin-bottom: 10px;">Celery Worker Status</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {% if docker_enabled %}
-    <div class="row">
-        <div class="col-md-12">
-            <div class="panel panel-success">
-                <div class="panel-heading"><h3 class="panel-title">Docker Controls</h3></div>
-                <div class="panel-body">
-                    <form method="POST" class="form-inline" style="margin-bottom: 15px;">
-                        {% csrf_token %}
-                        <button type="submit" name="action" value="docker_status" class="btn btn-success">Docker Status</button>
-                    </form>
-
-                    <form method="POST" class="form-inline" style="margin-bottom: 15px;">
-                        {% csrf_token %}
-                        <label style="margin-right: 10px;">
-                            <input type="checkbox" name="confirm_full_restart" value="1">
-                            I understand this will stop and recreate the full stack.
-                        </label>
-                        <div class="form-group" style="margin-right: 10px;">
-                            <label class="sr-only" for="confirm-full-restart-phrase">Confirmation Phrase</label>
-                            <input id="confirm-full-restart-phrase" type="text" name="confirm_full_restart_phrase" class="form-control" placeholder="Type RESTART STACK">
-                        </div>
-                        <button type="submit" name="action" value="docker_full_restart" class="btn btn-danger">Full Stack Restart</button>
-                    </form>
-
-                    <form method="POST" class="form-inline" style="margin-bottom: 15px;">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="docker_restart_service">
-                        <div class="form-group" style="margin-right: 10px;">
-                            <label class="sr-only" for="docker-restart-service">Service</label>
-                            <select id="docker-restart-service" name="service" class="form-control">
-                                {% for service in docker_services %}
-                                <option value="{{ service }}">{{ service }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-warning">Restart Service</button>
-                    </form>
-
-                    <form method="POST" class="form-inline" style="margin-bottom: 15px;">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="docker_pull_service">
-                        <div class="form-group" style="margin-right: 10px;">
-                            <label class="sr-only" for="docker-pull-service">Service</label>
-                            <select id="docker-pull-service" name="service" class="form-control">
-                                {% for service in docker_services %}
-                                <option value="{{ service }}">{{ service }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-warning">Pull Service</button>
-                    </form>
-
-                    <form method="POST" class="form-inline" style="margin-bottom: 15px;">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="docker_up_service">
-                        <div class="form-group" style="margin-right: 10px;">
-                            <label class="sr-only" for="docker-up-service">Service</label>
-                            <select id="docker-up-service" name="service" class="form-control">
-                                {% for service in docker_services %}
-                                <option value="{{ service }}">{{ service }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-warning">Up Service</button>
-                    </form>
-
-                    <form method="POST" class="form-inline">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="docker_logs_service">
-                        <div class="form-group" style="margin-right: 10px;">
-                            <label class="sr-only" for="docker-logs-service">Service</label>
-                            <select id="docker-logs-service" name="service" class="form-control">
-                                {% for service in docker_services %}
-                                <option value="{{ service }}">{{ service }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-right: 10px;">
-                            <label class="sr-only" for="docker-logs-tail">Tail</label>
-                            <input id="docker-logs-tail" name="tail" type="number" min="1" max="1000" value="100" class="form-control" placeholder="Tail lines">
-                        </div>
-                        <button type="submit" class="btn btn-warning">Tail Logs</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-    {% endif %}
-
-    <div class="row">
-        <div class="col-md-12">
-            <div class="panel panel-default">
-                <div class="panel-heading"><h3 class="panel-title">Package Management</h3></div>
-                <div class="panel-body">
-                    <p class="text-muted">Package changes should be treated as maintenance operations. Confirm the change, then choose a follow-up restart if needed.</p>
-                    <form method="POST" class="form-inline">
-                        {% csrf_token %}
-                        <div class="form-group" style="margin-right: 10px;">
-                            <label class="sr-only" for="package-action">Action</label>
-                            <select id="package-action" name="action" class="form-control">
-                                <option value="pip_install">Install</option>
-                                <option value="pip_upgrade">Upgrade</option>
-                                <option value="pip_uninstall">Uninstall</option>
-                                <option value="pip_show">Show Details</option>
-                            </select>
-                        </div>
-                        <div class="form-group" style="margin-right: 10px;">
-                            <label class="sr-only" for="package-name">Package</label>
-                            <input id="package-name" name="package" type="text" class="form-control" placeholder="package-name" required>
-                        </div>
-                        <div class="form-group" style="margin-right: 10px;">
-                            <label class="sr-only" for="package-version">Version</label>
-                            <input id="package-version" name="version" type="text" class="form-control" placeholder="Version or specifier">
-                        </div>
-                        <div class="form-group" style="margin-right: 10px;">
-                            <label class="sr-only" for="package-followup">Follow-up</label>
-                            <select id="package-followup" name="followup" class="form-control">
-                                <option value="">No follow-up</option>
-                                <option value="restart_app">Restart app service</option>
-                                <option value="restart_selected_service">Restart selected Docker service</option>
-                                <option value="restart_celery_workers">Restart Celery workers</option>
-                                <option value="full_stack_recreate">Full stack down/up</option>
-                            </select>
-                        </div>
-                        {% if docker_enabled %}
-                        <div class="form-group" style="margin-right: 10px;">
-                            <label class="sr-only" for="package-followup-service">Service</label>
-                            <select id="package-followup-service" name="followup_service" class="form-control">
-                                {% for service in docker_services %}
-                                <option value="{{ service }}">{{ service }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                {# ---------------------------------------------------------------- Files #}
+                <div class="tab-pane fade" id="aat-files" role="tabpanel" aria-labelledby="aat-tab-files" tabindex="0">
+                    <div class="card">
+                        {% if selected_file %}
+                            <div class="card-header d-flex flex-wrap align-items-center gap-2">
+                                <form method="get" class="d-flex align-items-center gap-2 me-auto">
+                                    <label for="aat-editor-file" class="visually-hidden">{% translate "File" %}</label>
+                                    <select id="aat-editor-file" name="file" class="form-select form-select-sm w-auto" data-aat-autosubmit>
+                                        {% for file_name in editable_files %}
+                                            <option value="{{ file_name }}" {% if file_name == selected_file %}selected{% endif %}>{{ file_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <noscript><button type="submit" class="btn btn-sm btn-outline-secondary">{% translate "Open" %}</button></noscript>
+                                    <code class="small text-body-secondary text-truncate d-none d-md-inline aat-path" title="{{ selected_file_path }}">{{ selected_file_path }}</code>
+                                </form>
+                                {% if backup_exists %}
+                                    <span class="badge rounded-pill text-bg-secondary"><i class="fa-solid fa-clock-rotate-left me-1" aria-hidden="true"></i>{% translate "Backup available" %}</span>
+                                {% endif %}
+                            </div>
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="file" value="{{ selected_file }}">
+                                <label for="aat-file-content" class="visually-hidden">{% translate "File content" %}</label>
+                                <textarea id="aat-file-content" name="content" class="form-control font-monospace border-0 rounded-0 aat-editor" rows="22" spellcheck="false" autocapitalize="off" autocomplete="off" {% if not can_execute %}readonly{% endif %}>
+{{ file_content }}</textarea>
+                                <div class="card-footer d-flex flex-wrap align-items-center gap-2">
+                                    <div class="small text-body-secondary me-auto">
+                                        {% blocktranslate with name=selected_file %}Saving keeps the previous version as <code>{{ name }}.bak</code>. Restart the site for changes to take effect.{% endblocktranslate %}
+                                    </div>
+                                    <div class="d-flex gap-2 ms-auto">
+                                        <button type="submit" name="action" value="file_revert" class="btn btn-outline-secondary"
+                                                data-aat-confirm="{% blocktranslate with name=selected_file %}Replace {{ name }} with the backup copy?{% endblocktranslate %}"
+                                                {% if not can_execute or not backup_exists %}disabled{% endif %}>
+                                            <i class="fa-solid fa-rotate-left me-1" aria-hidden="true"></i>{% translate "Revert to backup" %}
+                                        </button>
+                                        <button type="submit" name="action" value="file_save" class="btn btn-primary"
+                                                data-aat-confirm="{% blocktranslate with name=selected_file %}Save your changes to {{ name }}?{% endblocktranslate %}"
+                                                {% if not can_execute %}disabled{% endif %}>
+                                            <i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>{% translate "Save" %}
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        {% else %}
+                            <div class="card-body text-body-secondary">{% translate "No editable files are configured." %}</div>
                         {% endif %}
-                        <label style="margin-right: 10px;">
-                            <input type="checkbox" name="confirm_package_change" value="1">
-                            I understand this changes the running app environment.
-                        </label>
-                        <label style="margin-right: 10px;">
-                            <input type="checkbox" name="confirm_followup_recreate" value="1">
-                            Required for Full stack down/up follow-up.
-                        </label>
-                        <div class="form-group" style="margin-right: 10px;">
-                            <label class="sr-only" for="confirm-followup-recreate-phrase">Recreate Confirmation Phrase</label>
-                            <input id="confirm-followup-recreate-phrase" type="text" name="confirm_followup_recreate_phrase" class="form-control" placeholder="Type RECREATE STACK">
-                        </div>
-                        <button type="submit" class="btn btn-primary">Run Package Action</button>
-                    </form>
+                    </div>
                 </div>
-            </div>
-        </div>
-    </div>
 
-    <div class="row">
-        <div class="col-md-12">
-            <div class="panel panel-warning">
-                <div class="panel-heading"><h3 class="panel-title">Allowlisted File Editor</h3></div>
-                <div class="panel-body">
-                    <form method="GET" class="form-inline" style="margin-bottom: 15px;">
-                        <div class="form-group" style="margin-right: 10px;">
-                            <label class="sr-only" for="editor-file">File</label>
-                            <select id="editor-file" name="file" class="form-control" onchange="this.form.submit()">
-                                {% for file_name in editable_files %}
-                                <option value="{{ file_name }}" {% if file_name == selected_file %}selected{% endif %}>{{ file_name }}</option>
-                                {% endfor %}
-                            </select>
+                {# ---------------------------------------------------------------- History #}
+                <div class="tab-pane fade" id="aat-history" role="tabpanel" aria-labelledby="aat-tab-history" tabindex="0">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                            <h2 class="h6 mb-0">{% translate "Recent runs" %}</h2>
+                            {% if user.is_staff %}
+                                <a href="{% url 'admin:aa_admin_toolkit_commandlog_changelist' %}" class="small">{% translate "Full history in Django admin" %}</a>
+                            {% endif %}
                         </div>
-                    </form>
+                        {% include "aa_admin_toolkit/partials/log_table.html" with logs=recent_logs %}
+                    </div>
+                </div>
 
-                    {% if selected_file %}
-                    <form method="POST">
-                        {% csrf_token %}
-                        <input type="hidden" name="file" value="{{ selected_file }}">
-                        <div class="form-group" style="width: 100%;">
-                            <label for="file-content">Current Content</label>
-                            <textarea id="file-content" name="content" class="form-control" rows="18" style="width: 100%; font-family: monospace;">{{ file_content }}</textarea>
-                        </div>
-                        <div style="margin-top: 10px;">
-                            <button type="submit" name="action" value="file_save" class="btn btn-primary">Save with Backup</button>
-                            <button type="submit" name="action" value="file_revert" class="btn btn-warning" {% if not backup_exists %}disabled{% endif %}>Revert to Previous</button>
-                        </div>
-                    </form>
-                    {% else %}
-                    <p>No editable files are configured.</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-md-12">
-            <div class="panel panel-default">
-                <div class="panel-heading">
-                    <h3 class="panel-title">Recent Command History</h3>
-                </div>
-                <div class="panel-body">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Command</th>
-                                <th>Status</th>
-                                <th>Executed At</th>
-                                <th>Executed By</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for log in recent_logs %}
-                            <tr>
-                                <td><code>{{ log.command_name }}</code></td>
-                                <td>
-                                    {% if log.status == 'SUCCESS' %}
-                                    <span class="label label-success">SUCCESS</span>
-                                    {% elif log.status == 'FAILED' %}
-                                    <span class="label label-danger">FAILED</span>
-                                    {% elif log.status == 'RUNNING' %}
-                                    <span class="label label-info">RUNNING</span>
-                                    {% else %}
-                                    <span class="label label-default">{{ log.status }}</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ log.executed_at }}</td>
-                                <td>{{ log.executed_by }}</td>
-                                <td>
-                                    <a href="{% url 'aa_admin_toolkit:log_detail' log.id %}" class="btn btn-xs btn-primary">View Output</a>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="5" class="text-center">No commands run yet.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
+
+<div class="modal fade" id="aat-confirm-modal" tabindex="-1" aria-labelledby="aat-confirm-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5" id="aat-confirm-title">{% translate "Please confirm" %}</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% translate 'Close' %}"></button>
+            </div>
+            <div class="modal-body" data-aat-confirm-text></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% translate "Cancel" %}</button>
+                <button type="button" class="btn btn-primary" data-aat-confirm-ok>{% translate "Continue" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block extra_javascript %}
+    <script src="{% static 'aa_admin_toolkit/js/admin_toolkit.js' %}"></script>
+{% endblock extra_javascript %}

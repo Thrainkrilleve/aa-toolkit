@@ -47,6 +47,7 @@ SUPPORTED_ACTION_KEYS = {
     "docker_pull_service",
     "docker_logs_service",
     "docker_full_restart",
+    "manage_command",
     "discord_sync_all",
     "discord_sync_groups",
     "discord_sync_nicknames",
@@ -63,8 +64,23 @@ SUPPORTED_ACTION_KEYS = {
 }
 
 
+DISCORD_ACTION_KEYS = {
+    "discord_sync_all",
+    "discord_sync_groups",
+    "discord_sync_nicknames",
+}
+
+DISCORD_SERVICE_APP = "allianceauth.services.modules.discord"
+
+
 def is_supported_action(action_key: str) -> bool:
     return action_key in SUPPORTED_ACTION_KEYS
+
+
+def discord_service_installed() -> bool:
+    from django.apps import apps
+
+    return apps.is_installed(DISCORD_SERVICE_APP)
 
 
 def setting(name: str, default: Any) -> Any:
@@ -116,13 +132,7 @@ def _compose_service_inventory(allowed_services: list[str]) -> dict[str, dict[st
     if result.returncode != 0 or not result.stdout.strip():
         return {}
 
-    try:
-        raw_items = json.loads(result.stdout)
-    except Exception:
-        return {}
-
-    if isinstance(raw_items, dict):
-        raw_items = [raw_items]
+    raw_items = _parse_compose_json(result.stdout)
 
     services: dict[str, dict[str, str]] = {}
     for item in raw_items:
@@ -144,6 +154,28 @@ def _compose_service_inventory(allowed_services: list[str]) -> dict[str, dict[st
         }
 
     return services
+
+
+def _parse_compose_json(text: str) -> list[dict[str, Any]]:
+    # Older Compose releases print a JSON array; v2.21+ prints one object per line.
+    try:
+        parsed = json.loads(text)
+    except ValueError:
+        parsed = []
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                parsed.append(json.loads(line))
+            except ValueError:
+                continue
+
+    if isinstance(parsed, dict):
+        parsed = [parsed]
+    if not isinstance(parsed, list):
+        return []
+    return [item for item in parsed if isinstance(item, dict)]
 
 
 def _normalize_container_id(value: str) -> str:
@@ -181,15 +213,7 @@ def _docker_service_stats_by_name(service_inventory: dict[str, dict[str, str]]) 
     stats_by_name: dict[str, dict[str, str]] = {}
     stats_by_service: dict[str, dict[str, str]] = {}
 
-    for line in result.stdout.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            item = json.loads(line)
-        except Exception:
-            continue
-
+    for item in _parse_compose_json(result.stdout):
         stats = {
             "cpu": str(item.get("CPUPerc") or item.get("CPU") or "-").strip(),
             "memory": str(item.get("MemPerc") or item.get("MEM%") or item.get("MemUsage") or "-").strip(),
@@ -312,6 +336,10 @@ def allowed_docker_services() -> list[str]:
     return list(setting("AA_ADMIN_TOOLKIT_ALLOWED_DOCKER_SERVICES", []))
 
 
+def editor_file_path_overrides() -> dict[str, str]:
+    return {str(name): str(path) for name, path in setting("AA_ADMIN_TOOLKIT_EDITABLE_FILE_PATHS", {}).items()}
+
+
 def allowed_editor_files() -> list[str]:
     files = setting("AA_ADMIN_TOOLKIT_ALLOWED_EDITABLE_FILES", ["requirements.txt", "local.py"])
     normalized = [str(item) for item in files]
@@ -407,6 +435,10 @@ def compose_project_directory() -> str:
 
 def app_service_name() -> str:
     return str(setting("AA_ADMIN_TOOLKIT_APP_SERVICE", "web"))
+
+
+def worker_service_name() -> str:
+    return str(setting("AA_ADMIN_TOOLKIT_WORKER_SERVICE", "worker"))
 
 
 def app_python_command() -> list[str]:
@@ -589,8 +621,30 @@ def _manage_command_name(command_name: str) -> str:
     raise ValueError("Management command is not allowlisted.")
 
 
+def _settings_local_py() -> Path | None:
+    # Alliance Auth keeps local.py next to the active settings module
+    # (myauth/myauth/settings/local.py), not in BASE_DIR.
+    module = sys.modules.get(str(getattr(settings, "SETTINGS_MODULE", "") or ""))
+    module_file = getattr(module, "__file__", None)
+    if not module_file:
+        return None
+    candidate = Path(module_file).with_name("local.py")
+    return candidate if candidate.exists() else None
+
+
 def editor_file_path(file_name: str) -> Path:
-    return Path(settings.BASE_DIR) / _editor_file_name(file_name)
+    file_name = _editor_file_name(file_name)
+
+    override = editor_file_path_overrides().get(file_name)
+    if override:
+        return Path(override)
+
+    if file_name == "local.py":
+        local_py = _settings_local_py()
+        if local_py is not None:
+            return local_py
+
+    return Path(settings.BASE_DIR) / file_name
 
 
 def editor_backup_path(file_name: str) -> Path:
@@ -982,20 +1036,21 @@ def _apply_package_followup(result: ActionResult, params: dict[str, Any]) -> Act
         )
 
     if followup == "restart_celery_workers":
+        worker_service = worker_service_name()
         restart_result = _run_subprocess_action(
-            compose_base_command() + ["restart", "worker"],
-            label="docker compose restart worker",
+            compose_base_command() + ["restart", worker_service],
+            label=f"docker compose restart {worker_service}",
             cwd=compose_project_directory(),
-            target="worker",
+            target=worker_service,
             timeout=600,
         )
         combined_output = f"Package action:\n{result.output}\n\nFollow-up restart:\n{restart_result.output}".strip()
         return ActionResult(
             status="SUCCESS" if restart_result.status == "SUCCESS" else "FAILED",
             output=combined_output,
-            normalized_command=f"{result.normalized_command} && docker compose restart worker",
+            normalized_command=f"{result.normalized_command} && docker compose restart {worker_service}",
             exit_code=restart_result.exit_code,
-            target="worker",
+            target=worker_service,
         )
 
     if followup == "full_stack_recreate":

@@ -20,6 +20,11 @@ def run_action_task(log_id, action_key, payload=None):
             log.normalized_command = result.normalized_command
             log.exit_code = result.exit_code
             log.target = result.target
+        except ValueError as exc:
+            # Actions raise ValueError for rejected input or settings; the message says what to fix.
+            log.status = "FAILED"
+            log.output = str(exc)
+            log.exit_code = 1
         except Exception:
             log.status = "FAILED"
             log.output = traceback.format_exc()

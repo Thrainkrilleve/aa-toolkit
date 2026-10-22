@@ -1,3 +1,5 @@
 upgrade_plan.md
 __pycache__/
 *.pyc
+build/
+*.egg-info/

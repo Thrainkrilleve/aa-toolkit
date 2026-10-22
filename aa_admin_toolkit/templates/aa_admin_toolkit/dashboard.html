@@ -1,203 +1,159 @@
 {% extends "allianceauth/base-bs5.html" %}
-{% load i18n %}
+{% load i18n static %}
+
 {% block page_title %}{% translate "Admin Toolkit" %}{% endblock page_title %}
+{% block header_nav_brand %}{% translate "Admin Toolkit" %}{% endblock header_nav_brand %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'aa_admin_toolkit/css/admin_toolkit.css' %}">
+{% endblock extra_css %}
 
 {% block content %}
-<div class="col-lg-12">
-    <h1 class="page-header text-center">Admin Toolkit</h1>
-    
-    {% if messages %}
-    <div class="row">
-        <div class="col-md-12">
-            {% for message in messages %}
-            <div class="alert alert-{{ message.tags }} alert-dismissible" role="alert">
-                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                {{ message }}
+<div class="aat"
+     data-aat-dashboard
+     data-stats-url="{% url 'aa_admin_toolkit:resource_stats' %}"
+     {% if show_docker %}data-docker-url="{% url 'aa_admin_toolkit:docker_stats' %}"{% endif %}>
+
+    {% translate "Live server health and recent toolkit activity." as subtitle %}
+    {% include "aa_admin_toolkit/partials/header.html" with active="dashboard" subtitle=subtitle live=True %}
+
+    <div class="alert alert-danger d-none" role="alert" data-aat-stats-error>
+        <i class="fa-solid fa-triangle-exclamation me-2" aria-hidden="true"></i>{% translate "Could not load server statistics. Retrying…" %}
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="aat-metric-label">{% translate "CPU" %}</span>
+                        <span class="aat-metric-icon"><i class="fa-solid fa-microchip" aria-hidden="true"></i></span>
+                    </div>
+                    <div class="aat-metric-value" data-stat="cpu">—</div>
+                    <div class="progress aat-thin mt-2" role="progressbar" aria-label="{% translate 'CPU usage' %}" aria-valuemin="0" aria-valuemax="100" data-bar-wrap="cpu">
+                        <div class="progress-bar" style="width: 0%" data-bar="cpu"></div>
+                    </div>
+                    <div class="small text-body-secondary mt-2" data-stat="load">&nbsp;</div>
+                </div>
             </div>
-            {% endfor %}
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="aat-metric-label">{% translate "Memory" %}</span>
+                        <span class="aat-metric-icon"><i class="fa-solid fa-memory" aria-hidden="true"></i></span>
+                    </div>
+                    <div class="aat-metric-value" data-stat="mem">—</div>
+                    <div class="progress aat-thin mt-2" role="progressbar" aria-label="{% translate 'Memory usage' %}" aria-valuemin="0" aria-valuemax="100" data-bar-wrap="mem">
+                        <div class="progress-bar" style="width: 0%" data-bar="mem"></div>
+                    </div>
+                    <div class="small text-body-secondary mt-2" data-stat="mem_detail">&nbsp;</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="aat-metric-label">{% translate "Disk" %}</span>
+                        <span class="aat-metric-icon"><i class="fa-solid fa-hard-drive" aria-hidden="true"></i></span>
+                    </div>
+                    <div class="aat-metric-value" data-stat="disk">—</div>
+                    <div class="progress aat-thin mt-2" role="progressbar" aria-label="{% translate 'Disk usage' %}" aria-valuemin="0" aria-valuemax="100" data-bar-wrap="disk">
+                        <div class="progress-bar" style="width: 0%" data-bar="disk"></div>
+                    </div>
+                    <div class="small text-body-secondary mt-2" data-stat="disk_detail">&nbsp;</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="aat-metric-label">{% translate "Celery queue" %}</span>
+                        <span class="aat-metric-icon"><i class="fa-solid fa-layer-group" aria-hidden="true"></i></span>
+                    </div>
+                    <div class="aat-metric-value" data-stat="queue">—</div>
+                    <div class="small text-body-secondary mt-2">{% translate "Tasks waiting in the default queue" %}</div>
+                </div>
+            </div>
         </div>
     </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="h6 mb-0"><i class="fa-solid fa-server me-2 text-body-secondary" aria-hidden="true"></i>{% translate "Host" %}</h2>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between gap-3">
+                        <span class="text-body-secondary">{% translate "Uptime" %}</span><span class="fw-semibold text-end" data-stat="uptime">—</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between gap-3">
+                        <span class="text-body-secondary">{% translate "Load average (1, 5, 15 min)" %}</span><span class="fw-semibold text-end" data-stat="load_full">—</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between gap-3">
+                        <span class="text-body-secondary">{% translate "Network sent" %}</span><span class="fw-semibold text-end" data-stat="net_sent">—</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between gap-3">
+                        <span class="text-body-secondary">{% translate "Network received" %}</span><span class="fw-semibold text-end" data-stat="net_recv">—</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h2 class="h6 mb-0"><i class="fa-solid fa-shield-halved me-2 text-body-secondary" aria-hidden="true"></i>{% translate "Alliance Auth" %}</h2>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between gap-3">
+                        <span class="text-body-secondary">{% translate "Registered users" %}</span><span class="fw-semibold text-end" data-stat="users">—</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between gap-3">
+                        <span class="text-body-secondary">{% translate "Known characters" %}</span><span class="fw-semibold text-end" data-stat="characters">—</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between gap-3">
+                        <span class="text-body-secondary">{% translate "Database size" %}</span><span class="fw-semibold text-end" data-stat="db_size">—</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between gap-3">
+                        <span class="text-body-secondary">{% translate "Maintenance mode" %}</span>
+                        <span class="fw-semibold text-end">{% if maintenance_enabled %}<span class="text-warning">{% translate "On" %}</span>{% else %}{% translate "Off" %}{% endif %}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    {% if show_docker %}
+        <div class="card mb-3">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h2 class="h6 mb-0"><i class="fa-brands fa-docker me-2 text-body-secondary" aria-hidden="true"></i>{% translate "Docker services" %}</h2>
+                <span class="small text-body-secondary" data-docker-summary></span>
+            </div>
+            <div class="card-body">
+                <div class="text-body-secondary" data-docker-empty>
+                    <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>{% translate "Loading container status…" %}
+                </div>
+                <div class="row g-3" data-docker-list></div>
+            </div>
+        </div>
     {% endif %}
 
-    <!-- Resource Dashboard -->
-    <div class="row">
-        <div class="col-md-4">
-            <div class="panel panel-success">
-                <div class="panel-heading">
-                    <h3 class="panel-title">Server Resources (Host)</h3>
-                </div>
-                <div class="panel-body">
-                    <p><strong>CPU Usage:</strong> <span id="stat-cpu">Loading...</span></p>
-                    <p><strong>RAM Usage:</strong> <span id="stat-mem">Loading...</span></p>
-                    <p><strong>Disk Usage:</strong> <span id="stat-disk">Loading...</span></p>
-                    <p><strong>Uptime:</strong> <span id="stat-uptime">Loading...</span></p>
-                    <p><strong>Load Avg:</strong> <span id="stat-load">Loading...</span></p>
-                    <p><strong>Network I/O:</strong> <span id="stat-net">Loading...</span></p>
-                </div>
-            </div>
+    <div class="card">
+        <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <h2 class="h6 mb-0"><i class="fa-solid fa-clock-rotate-left me-2 text-body-secondary" aria-hidden="true"></i>{% translate "Recent activity" %}</h2>
+            <a href="{% url 'aa_admin_toolkit:operations' %}" class="btn btn-sm btn-primary">
+                <i class="fa-solid fa-sliders me-1" aria-hidden="true"></i>{% translate "Open operations" %}
+            </a>
         </div>
-        <div class="col-md-4">
-            <div class="panel panel-warning">
-                <div class="panel-heading">
-                    <h3 class="panel-title">Alliance Auth Resources</h3>
-                </div>
-                <div class="panel-body">
-                    <p><strong>Registered Users:</strong> <span id="stat-users">Loading...</span></p>
-                    <p><strong>Known Characters:</strong> <span id="stat-chars">Loading...</span></p>
-                    <p><strong>Database Size:</strong> <span id="stat-db">Loading...</span></p>
-                    <p><strong>Celery Queue:</strong> <span id="stat-queue">Loading...</span></p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="panel panel-info">
-                <div class="panel-heading">
-                    <h3 class="panel-title">Docker Services (Containers)</h3>
-                </div>
-                <div class="panel-body">
-                    <div id="docker-services-loading">Loading container status...</div>
-                    <div id="docker-services-list" class="row" style="display: none;"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-md-12">
-            <div class="panel panel-primary">
-                <div class="panel-heading">
-                    <h3 class="panel-title">Operations</h3>
-                </div>
-                <div class="panel-body">
-                    <p>This dashboard is an overview. Use the operations page for runtime actions.</p>
-                    <a href="{% url 'aa_admin_toolkit:operations' %}" class="btn btn-primary">Open Operations Page</a>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="row">
-        <div class="col-md-12">
-            <div class="panel panel-default">
-                <div class="panel-heading">
-                    <h3 class="panel-title">Recent Command History</h3>
-                </div>
-                <div class="panel-body">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Command</th>
-                                <th>Action Type</th>
-                                <th>Target</th>
-                                <th>Status</th>
-                                <th>Exit Code</th>
-                                <th>Executed At</th>
-                                <th>Executed By</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for log in recent_logs %}
-                            <tr>
-                                <td><code>{{ log.command_name }}</code></td>
-                                <td>{{ log.action_type }}</td>
-                                <td>{{ log.target|default:"-" }}</td>
-                                <td>
-                                    {% if log.status == 'SUCCESS' %}
-                                    <span class="label label-success">SUCCESS</span>
-                                    {% elif log.status == 'FAILED' %}
-                                    <span class="label label-danger">FAILED</span>
-                                    {% elif log.status == 'RUNNING' %}
-                                    <span class="label label-info">RUNNING</span>
-                                    {% else %}
-                                    <span class="label label-default">{{ log.status }}</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ log.exit_code|default:"-" }}</td>
-                                <td>{{ log.executed_at }}</td>
-                                <td>{{ log.executed_by }}</td>
-                                <td>
-                                    <a href="{% url 'aa_admin_toolkit:log_detail' log.id %}" class="btn btn-xs btn-primary">View Output</a>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="8" class="text-center">No commands run yet.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+        {% include "aa_admin_toolkit/partials/log_table.html" with logs=recent_logs %}
     </div>
 </div>
-{% endblock %}
+{% endblock content %}
 
 {% block extra_javascript %}
-<script>
-    function updateStats() {
-        fetch("{% url 'aa_admin_toolkit:resource_stats' %}")
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('stat-cpu').textContent = data.cpu + '%';
-                document.getElementById('stat-mem').textContent = data.mem_percent + '% (' + data.mem_used + 'GB / ' + data.mem_total + 'GB)';
-                document.getElementById('stat-disk').textContent = data.disk_percent + '% (' + data.disk_used + 'GB / ' + data.disk_total + 'GB)';
-                document.getElementById('stat-uptime').textContent = data.uptime + ' hours';
-                document.getElementById('stat-load').textContent = data.load;
-                document.getElementById('stat-net').textContent = data.net_sent + 'MB sent / ' + data.net_recv + 'MB recv';
-                
-                document.getElementById('stat-users').textContent = data.users;
-                document.getElementById('stat-chars').textContent = data.characters;
-                document.getElementById('stat-db').textContent = data.db_size > 0 ? data.db_size + ' MB' : 'Unknown';
-                document.getElementById('stat-queue').textContent = data.queue;
-            })
-            .catch(error => console.error('Error fetching stats:', error));
-    }
-
-    function updateDockerStats() {
-        fetch("{% url 'aa_admin_toolkit:docker_stats' %}")
-            .then(response => response.json())
-            .then(data => {
-                const loading = document.getElementById('docker-services-loading');
-                const list = document.getElementById('docker-services-list');
-                const services = data.services || [];
-
-                if (!services.length) {
-                    loading.textContent = 'No Docker services configured or available.';
-                    loading.style.display = 'block';
-                    list.style.display = 'none';
-                    list.innerHTML = '';
-                    return;
-                }
-
-                list.innerHTML = services.map(service => {
-                    const badgeClass = service.status === 'Up' ? 'label-success' : (service.status === 'Down' ? 'label-danger' : 'label-warning');
-                    const tooltip = `State: ${service.state} | Health: ${service.health} | CPU: ${service.cpu || '-'} | Memory: ${service.memory || '-'}`;
-                    return `
-                        <div class="col-sm-2 col-xs-6" style="margin-bottom: 10px;">
-                            <div class="well well-sm" title="${tooltip}">
-                                <div><strong>${service.service}</strong></div>
-                                <div><span class="label ${badgeClass}">${service.status}</span></div>
-                                <div style="font-size: 12px; margin-top: 6px;">${service.state}</div>
-                                <div style="font-size: 12px; margin-top: 4px;">CPU ${service.cpu || '-'} | RAM ${service.memory || '-'}</div>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                loading.style.display = 'none';
-                list.style.display = 'block';
-            })
-            .catch(error => console.error('Error fetching Docker stats:', error));
-    }
-
-    // Fetch immediately on load, then every 5 seconds
-    document.addEventListener("DOMContentLoaded", function() {
-        updateStats();
-        updateDockerStats();
-        setInterval(updateStats, 5000);
-        setInterval(updateDockerStats, 10000);
-    });
-</script>
-{% endblock %}
+    <script src="{% static 'aa_admin_toolkit/js/admin_toolkit.js' %}"></script>
+{% endblock extra_javascript %}
