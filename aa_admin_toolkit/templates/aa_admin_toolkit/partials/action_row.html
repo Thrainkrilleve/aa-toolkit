@@ -16,7 +16,7 @@ confirm (shows the confirmation dialog) and needs_docker.
         {% if description %}<div class="small text-body-secondary">{{ description }}</div>{% endif %}
     </div>
     <button type="submit" name="action" value="{{ action }}"
-            class="btn btn-sm btn-{{ variant|default:'outline-primary' }} text-nowrap align-self-start align-self-sm-center"
+            class="btn btn-sm btn-{{ variant|default:'primary' }} text-nowrap align-self-start align-self-sm-center"
             {% if confirm %}data-aat-confirm="{{ confirm }}"{% endif %}
             {% if not can_execute or needs_docker and not docker_enabled %}disabled{% endif %}>
         <i class="fa-solid fa-{{ icon|default:'play' }} me-1" aria-hidden="true"></i>{{ button|default:_("Run") }}

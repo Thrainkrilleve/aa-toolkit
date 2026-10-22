@@ -65,7 +65,7 @@
                         <div class="list-group list-group-flush">
                             {% include "aa_admin_toolkit/partials/action_row.html" with action="django_check" title=_("System check") description=_("Looks for configuration problems with manage.py check.") %}
                             {% include "aa_admin_toolkit/partials/action_row.html" with action="django_showmigrations" title=_("Show migrations") description=_("Lists every migration and whether it has been applied.") %}
-                            {% include "aa_admin_toolkit/partials/action_row.html" with action="django_clearsessions" title=_("Clear expired sessions") description=_("Deletes expired login sessions from the database.") variant="outline-warning" icon="broom" confirm=_("Clear expired sessions from the database?") %}
+                            {% include "aa_admin_toolkit/partials/action_row.html" with action="django_clearsessions" title=_("Clear expired sessions") description=_("Deletes expired login sessions from the database.") variant="warning" icon="broom" confirm=_("Clear expired sessions from the database?") %}
                         </div>
                     </div>
 
@@ -77,8 +77,8 @@
                         <div class="list-group list-group-flush">
                             {% include "aa_admin_toolkit/partials/action_row.html" with action="auth_check" title=_("System check") description=_("manage.py check, inside the app container.") needs_docker=True %}
                             {% include "aa_admin_toolkit/partials/action_row.html" with action="auth_showmigrations" title=_("Show migrations") description=_("manage.py showmigrations, inside the app container.") needs_docker=True %}
-                            {% include "aa_admin_toolkit/partials/action_row.html" with action="auth_migrate" title=_("Run migrations") description=_("Applies pending database migrations. Take a backup first.") variant="outline-warning" icon="database" needs_docker=True confirm=_("Apply all pending database migrations now?") %}
-                            {% include "aa_admin_toolkit/partials/action_row.html" with action="auth_collectstatic" title=_("Collect static files") description=_("Copies static files so new or updated apps render correctly.") variant="outline-warning" icon="file-import" needs_docker=True confirm=_("Run collectstatic now?") %}
+                            {% include "aa_admin_toolkit/partials/action_row.html" with action="auth_migrate" title=_("Run migrations") description=_("Applies pending database migrations. Take a backup first.") variant="warning" icon="database" needs_docker=True confirm=_("Apply all pending database migrations now?") %}
+                            {% include "aa_admin_toolkit/partials/action_row.html" with action="auth_collectstatic" title=_("Collect static files") description=_("Copies static files so new or updated apps render correctly.") variant="warning" icon="file-import" needs_docker=True confirm=_("Run collectstatic now?") %}
                         </div>
                     </div>
 
@@ -102,7 +102,7 @@
                                             <code class="small text-body-secondary">manage.py {{ item.command }}{% for arg in item.args %} {{ arg }}{% endfor %}</code>
                                         </div>
                                         <button type="submit" name="action" value="manage_command"
-                                                class="btn btn-sm btn-outline-primary text-nowrap align-self-start align-self-sm-center"
+                                                class="btn btn-sm btn-primary text-nowrap align-self-start align-self-sm-center"
                                                 data-aat-confirm="{% blocktranslate with label=item.label %}Run “{{ label }}”?{% endblocktranslate %}"
                                                 {% if not can_execute or not docker_enabled %}disabled{% endif %}>
                                             <i class="fa-solid fa-play me-1" aria-hidden="true"></i>{% translate "Run" %}
@@ -186,15 +186,15 @@
                                         </select>
                                     </div>
                                     <div class="col-md-7 col-xl-8 d-flex flex-wrap gap-2">
-                                        <button type="submit" name="action" value="docker_restart_service" class="btn btn-outline-warning"
+                                        <button type="submit" name="action" value="docker_restart_service" class="btn btn-warning"
                                                 data-aat-confirm="{% translate 'Restart {service}?' %}" {% if not can_execute %}disabled{% endif %}>
                                             <i class="fa-solid fa-rotate me-1" aria-hidden="true"></i>{% translate "Restart" %}
                                         </button>
-                                        <button type="submit" name="action" value="docker_up_service" class="btn btn-outline-primary"
+                                        <button type="submit" name="action" value="docker_up_service" class="btn btn-primary"
                                                 data-aat-confirm="{% translate 'Start {service} (docker compose up -d)?' %}" {% if not can_execute %}disabled{% endif %}>
                                             <i class="fa-solid fa-play me-1" aria-hidden="true"></i>{% translate "Start" %}
                                         </button>
-                                        <button type="submit" name="action" value="docker_pull_service" class="btn btn-outline-primary"
+                                        <button type="submit" name="action" value="docker_pull_service" class="btn btn-primary"
                                                 data-aat-confirm="{% translate 'Pull the latest image for {service} and recreate it?' %}" {% if not can_execute %}disabled{% endif %}>
                                             <i class="fa-solid fa-cloud-arrow-down me-1" aria-hidden="true"></i>{% translate "Pull and recreate" %}
                                         </button>
@@ -226,7 +226,7 @@
                                         <input id="aat-logs-tail" name="tail" type="number" min="1" max="1000" value="100" class="form-control">
                                     </div>
                                     <div class="col-6 col-md-auto">
-                                        <button type="submit" name="action" value="docker_logs_service" class="btn btn-outline-primary w-100" {% if not can_execute %}disabled{% endif %}>
+                                        <button type="submit" name="action" value="docker_logs_service" class="btn btn-primary w-100" {% if not can_execute %}disabled{% endif %}>
                                             <i class="fa-solid fa-scroll me-1" aria-hidden="true"></i>{% translate "View logs" %}
                                         </button>
                                     </div>
@@ -380,7 +380,7 @@
                                             <option value="{{ file_name }}" {% if file_name == selected_file %}selected{% endif %}>{{ file_name }}</option>
                                         {% endfor %}
                                     </select>
-                                    <noscript><button type="submit" class="btn btn-sm btn-outline-secondary">{% translate "Open" %}</button></noscript>
+                                    <noscript><button type="submit" class="btn btn-sm btn-secondary">{% translate "Open" %}</button></noscript>
                                     <code class="small text-body-secondary text-truncate d-none d-md-inline aat-path" title="{{ selected_file_path }}">{{ selected_file_path }}</code>
                                 </form>
                                 {% if backup_exists %}
@@ -398,7 +398,7 @@
                                         {% blocktranslate with name=selected_file %}Saving keeps the previous version as <code>{{ name }}.bak</code>. Restart the site for changes to take effect.{% endblocktranslate %}
                                     </div>
                                     <div class="d-flex gap-2 ms-auto">
-                                        <button type="submit" name="action" value="file_revert" class="btn btn-outline-secondary"
+                                        <button type="submit" name="action" value="file_revert" class="btn btn-secondary"
                                                 data-aat-confirm="{% blocktranslate with name=selected_file %}Replace {{ name }} with the backup copy?{% endblocktranslate %}"
                                                 {% if not can_execute or not backup_exists %}disabled{% endif %}>
                                             <i class="fa-solid fa-rotate-left me-1" aria-hidden="true"></i>{% translate "Revert to backup" %}
