@@ -25,6 +25,10 @@ class _FakePostData(dict):
         return [value]
 
 
+class _FakePermissionDenied(Exception):
+    pass
+
+
 class _FakeRequest:
     def __init__(self, post_data):
         self.method = "POST"
@@ -80,7 +84,7 @@ class OperationsConfirmationTests(unittest.TestCase):
         # Minimal django stubs required by aa_admin_toolkit.views imports.
         django_module = types.ModuleType("django")
         shortcuts_module = types.ModuleType("django.shortcuts")
-        shortcuts_module.redirect = lambda target: {"redirect": target}
+        shortcuts_module.redirect = lambda target, **kwargs: {"redirect": target, **kwargs}
         shortcuts_module.render = lambda request, template, context: {"template": template, "context": context}
         shortcuts_module.get_object_or_404 = lambda model, **kwargs: types.SimpleNamespace(id=kwargs.get("id", 1))
 
@@ -101,6 +105,11 @@ class OperationsConfirmationTests(unittest.TestCase):
         db_module = types.ModuleType("django.db")
         db_module.connection = types.SimpleNamespace()
 
+        core_module = types.ModuleType("django.core")
+        exceptions_module = types.ModuleType("django.core.exceptions")
+        exceptions_module.PermissionDenied = _FakePermissionDenied
+        core_module.exceptions = exceptions_module
+
         contrib_module = types.ModuleType("django.contrib")
         contrib_module.messages = cls.fake_messages
         auth_module = types.ModuleType("django.contrib.auth")
@@ -112,6 +121,7 @@ class OperationsConfirmationTests(unittest.TestCase):
         django_module.utils = utils_module
         django_module.http = http_module
         django_module.db = db_module
+        django_module.core = core_module
 
         # App module stubs used by views.
         models_module = types.ModuleType("aa_admin_toolkit.models")
@@ -131,6 +141,7 @@ class OperationsConfirmationTests(unittest.TestCase):
             "maintenance_disable",
             "file_save",
             "file_revert",
+            "discord_sync_all",
         }
         actions_module.user_can_view = lambda user: True
         actions_module.user_can_execute = lambda user: True
@@ -147,6 +158,11 @@ class OperationsConfirmationTests(unittest.TestCase):
         actions_module.disable_maintenance_mode = lambda: {"path": "x"}
         actions_module.is_supported_action = lambda action_key: action_key in supported
         actions_module.allowed_manage_commands = lambda: []
+        actions_module.maintenance_sentinel_path = lambda: "x"
+        actions_module.discord_service_installed = lambda: True
+        actions_module.docker_full_restart_enabled = lambda: True
+        actions_module.editor_file_path = lambda name: name
+        actions_module.DISCORD_ACTION_KEYS = {"discord_sync_all", "discord_sync_groups", "discord_sync_nicknames"}
         cls.webhook_calls = []
         actions_module.send_audit_webhook = lambda **kwargs: cls.webhook_calls.append(kwargs)
 
@@ -164,6 +180,8 @@ class OperationsConfirmationTests(unittest.TestCase):
         sys.modules["django.utils.timezone"] = timezone_module
         sys.modules["django.http"] = http_module
         sys.modules["django.db"] = db_module
+        sys.modules["django.core"] = core_module
+        sys.modules["django.core.exceptions"] = exceptions_module
         sys.modules["aa_admin_toolkit.models"] = models_module
         sys.modules["aa_admin_toolkit.tasks"] = tasks_module
         sys.modules["aa_admin_toolkit.actions"] = actions_module
@@ -184,8 +202,10 @@ class OperationsConfirmationTests(unittest.TestCase):
         self.fake_log_manager.created.clear()
         self.fake_task.calls.clear()
         self.webhook_calls.clear()
+        self.views.user_can_view = lambda user: True
         self.views.user_can_execute = lambda user: True
         self.views.docker_enabled = lambda: True
+        self.views.discord_service_installed = lambda: True
 
     def test_full_restart_requires_checkbox(self):
         request = _FakeRequest({"action": "docker_full_restart", "confirm_full_restart_phrase": "RESTART STACK"})
@@ -243,7 +263,8 @@ class OperationsConfirmationTests(unittest.TestCase):
         })
         response = self.views.operations(request)
 
-        self.assertEqual(response.get("redirect"), "aa_admin_toolkit:operations")
+        self.assertEqual(response.get("redirect"), "aa_admin_toolkit:log_detail")
+        self.assertEqual(response.get("log_id"), 1)
         self.assertEqual(len(self.fake_log_manager.created), 1)
         self.assertEqual(len(self.fake_task.calls), 1)
         self.assertEqual(self.fake_task.calls[0][1], "pip_uninstall")
@@ -297,6 +318,30 @@ class OperationsConfirmationTests(unittest.TestCase):
         self.assertTrue(any("Docker is disabled" in msg for level, msg in request._messages if level == "error"))
         self.assertEqual(self.fake_task.calls, [])
         self.assertEqual(len(self.fake_log_manager.created), 0)
+
+    def test_discord_actions_are_blocked_when_discord_service_is_missing(self):
+        self.views.discord_service_installed = lambda: False
+        request = _FakeRequest({"action": "discord_sync_all"})
+
+        response = self.views.operations(request)
+
+        self.assertEqual(response.get("redirect"), "aa_admin_toolkit:operations")
+        self.assertTrue(any("Discord service is not installed" in msg for level, msg in request._messages if level == "error"))
+        self.assertEqual(self.fake_task.calls, [])
+        self.assertEqual(len(self.fake_log_manager.created), 0)
+
+    def test_signed_in_user_without_view_access_gets_403(self):
+        self.views.user_can_view = lambda user: False
+        user = types.SimpleNamespace(is_authenticated=True)
+
+        with self.assertRaises(_FakePermissionDenied):
+            self.views.toolkit_access_check(user)
+
+    def test_anonymous_user_is_sent_to_login(self):
+        self.views.user_can_view = lambda user: False
+        user = types.SimpleNamespace(is_authenticated=False)
+
+        self.assertFalse(self.views.toolkit_access_check(user))
 
 
 if __name__ == "__main__":

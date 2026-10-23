@@ -1,0 +1,38 @@
+{% load i18n %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+    <div>
+        <h1 class="h3 mb-1">
+            <i class="fa-solid fa-screwdriver-wrench text-primary me-2" aria-hidden="true"></i>{% translate "Admin Toolkit" %}
+        </h1>
+        <p class="text-body-secondary mb-0">{{ subtitle }}</p>
+    </div>
+    {% if live %}
+        <div class="small text-body-secondary d-flex align-items-center gap-2" aria-live="polite">
+            <span class="aat-dot aat-live-dot bg-success" data-aat-live-dot></span>
+            <span data-aat-updated>{% translate "Connecting…" %}</span>
+        </div>
+    {% endif %}
+</div>
+
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <a class="nav-link{% if active == 'dashboard' %} active{% endif %}"{% if active == 'dashboard' %} aria-current="page"{% endif %} href="{% url 'aa_admin_toolkit:dashboard' %}">
+            <i class="fa-solid fa-gauge-high me-1" aria-hidden="true"></i>{% translate "Overview" %}
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link{% if active == 'operations' %} active{% endif %}"{% if active == 'operations' %} aria-current="page"{% endif %} href="{% url 'aa_admin_toolkit:operations' %}">
+            <i class="fa-solid fa-sliders me-1" aria-hidden="true"></i>{% translate "Operations" %}
+        </a>
+    </li>
+</ul>
+
+{% if maintenance_enabled %}
+    <div class="alert alert-warning d-flex align-items-center gap-3" role="status">
+        <i class="fa-solid fa-person-digging fa-lg" aria-hidden="true"></i>
+        <div>
+            <strong>{% translate "Maintenance mode is on." %}</strong>
+            {% translate "Turn it off from Operations › Maintenance when you are done." %}
+        </div>
+    </div>
+{% endif %}

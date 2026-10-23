@@ -7,6 +7,7 @@ urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("operations/", views.operations, name="operations"),
     path("log/<int:log_id>/", views.log_detail, name="log_detail"),
+    path("log/<int:log_id>/status/", views.log_status, name="log_status"),
     path("stats/", views.resource_stats, name="resource_stats"),
     path("docker-stats/", views.docker_stats, name="docker_stats"),
 ]

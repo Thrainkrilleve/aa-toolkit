@@ -2,6 +2,7 @@ import json
 import importlib
 import importlib.util
 import subprocess
+import tempfile
 import sys
 import types
 import unittest
@@ -248,6 +249,51 @@ class DockerServiceSnapshotMappingTests(unittest.TestCase):
         self.assertEqual(snapshot[0]["service"], "web")
         self.assertEqual(snapshot[0]["cpu"], "2.5%")
         self.assertEqual(snapshot[0]["memory"], "4.0%")
+
+    @patch("aa_admin_toolkit.actions.compose_project_directory", return_value="/tmp")
+    @patch("aa_admin_toolkit.actions.compose_base_command", return_value=["docker", "compose"])
+    @patch("aa_admin_toolkit.actions.allowed_docker_services", return_value=["web", "worker"])
+    @patch("aa_admin_toolkit.actions.docker_enabled", return_value=True)
+    def test_snapshot_reads_line_delimited_compose_ps_output(self, _docker_enabled, _allowed_services, _compose_cmd, _compose_dir):
+        # Compose v2.21+ prints one JSON object per line instead of a JSON array.
+        ps_payload = "\n".join([
+            json.dumps({"Service": "web", "State": "running", "Health": "healthy", "ID": "aaa111", "Name": "proj-web-1"}),
+            json.dumps({"Service": "worker", "State": "exited", "Health": "", "ID": "bbb222", "Name": "proj-worker-1"}),
+        ])
+        stats_payload = json.dumps({"ID": "aaa111", "Name": "proj-web-1", "CPUPerc": "1.0%", "MemPerc": "2.0%"})
+
+        with patch("aa_admin_toolkit.actions._run_subprocess") as run_subprocess:
+            run_subprocess.side_effect = [
+                self._cp(["docker", "compose", "ps", "--format", "json"], ps_payload),
+                self._cp(["docker", "compose", "stats", "--no-stream", "--format", "json"], stats_payload),
+            ]
+            snapshot = actions.docker_service_snapshot()
+
+        by_service = {item["service"]: item for item in snapshot}
+        self.assertEqual(by_service["web"]["status"], "Up")
+        self.assertEqual(by_service["web"]["cpu"], "1.0%")
+        self.assertEqual(by_service["worker"]["status"], "Down")
+
+    def test_manage_command_is_a_supported_action(self):
+        self.assertTrue(actions.is_supported_action("manage_command"))
+
+    @patch("aa_admin_toolkit.actions.setting", side_effect=lambda name, default: ["requirements.txt"] if name == "AA_ADMIN_TOOLKIT_ALLOWED_EDITABLE_FILES" else default)
+    def test_local_py_resolves_next_to_the_settings_module(self, _setting):
+        with tempfile.TemporaryDirectory() as tmp:
+            settings_dir = Path(tmp) / "myauth" / "settings"
+            settings_dir.mkdir(parents=True)
+            (settings_dir / "local.py").write_text("DEBUG = False\n", encoding="utf-8")
+            settings_module = types.ModuleType("myauth.settings.local")
+            settings_module.__file__ = str(settings_dir / "local.py")
+
+            with patch.dict(sys.modules, {"myauth.settings.local": settings_module}), \
+                    patch.object(actions, "settings", types.SimpleNamespace(BASE_DIR=tmp, SETTINGS_MODULE="myauth.settings.local")):
+                self.assertEqual(actions.editor_file_path("local.py"), settings_dir / "local.py")
+                self.assertEqual(actions.editor_file_path("requirements.txt"), Path(tmp) / "requirements.txt")
+
+    @patch("aa_admin_toolkit.actions.setting", side_effect=lambda name, default: {"requirements.txt": "/srv/conf/requirements.txt"} if name == "AA_ADMIN_TOOLKIT_EDITABLE_FILE_PATHS" else (["requirements.txt"] if name == "AA_ADMIN_TOOLKIT_ALLOWED_EDITABLE_FILES" else default))
+    def test_editable_file_path_override(self, _setting):
+        self.assertEqual(actions.editor_file_path("requirements.txt"), Path("/srv/conf/requirements.txt"))
 
     @patch("aa_admin_toolkit.actions.setting", side_effect=lambda name, default: ["requirements.txt"] if name == "AA_ADMIN_TOOLKIT_ALLOWED_EDITABLE_FILES" else default)
     def test_allowed_editor_files_always_includes_local_py(self, _setting):

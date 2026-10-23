@@ -1,71 +1,108 @@
 {% extends "allianceauth/base-bs5.html" %}
-{% load i18n %}
-{% block page_title %}{% translate "Command Output" %}{% endblock page_title %}
+{% load i18n static admin_toolkit %}
+
+{% block page_title %}{{ log.command_name|action_label }} · {% translate "Admin Toolkit" %}{% endblock page_title %}
+{% block header_nav_brand %}{% translate "Admin Toolkit" %}{% endblock header_nav_brand %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'aa_admin_toolkit/css/admin_toolkit.css' %}">
+{% endblock extra_css %}
 
 {% block content %}
-<div class="col-lg-12">
-    <div class="row">
-        <div class="col-md-12 mb-3" style="margin-bottom: 20px;">
-            <a href="{% url 'aa_admin_toolkit:dashboard' %}" class="btn btn-default">&larr; Back to Dashboard</a>
+<div class="aat"
+     {% if is_active %}data-aat-log-poll="{% url 'aa_admin_toolkit:log_status' log.id %}" data-aat-log-status="{{ log.status }}"{% endif %}>
+
+    <nav aria-label="{% translate 'Breadcrumb' %}">
+        <ol class="breadcrumb mb-3">
+            <li class="breadcrumb-item"><a href="{% url 'aa_admin_toolkit:dashboard' %}">{% translate "Admin Toolkit" %}</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'aa_admin_toolkit:operations' %}">{% translate "Operations" %}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{% blocktranslate with id=log.id %}Run #{{ id }}{% endblocktranslate %}</li>
+        </ol>
+    </nav>
+
+    <div class="card mb-3">
+        <div class="card-body d-flex flex-wrap justify-content-between align-items-start gap-3">
+            <div class="min-w-0">
+                <h1 class="h4 mb-1">{{ log.command_name|action_label }}</h1>
+                <code class="small text-body-secondary text-break">{{ log.normalized_command|default:log.command_name }}</code>
+            </div>
+            <div class="fs-5">{% include "aa_admin_toolkit/partials/status_badge.html" with status=log.status %}</div>
+        </div>
+        <div class="card-body border-top">
+            <dl class="row row-cols-2 row-cols-md-4 row-cols-xl-auto g-3 gx-xl-5 small mb-0">
+                <div class="col">
+                    <dt class="text-body-secondary fw-normal">{% translate "Target" %}</dt>
+                    <dd class="mb-0 fw-semibold text-break">{{ log.target|default:"—" }}</dd>
+                </div>
+                <div class="col">
+                    <dt class="text-body-secondary fw-normal">{% translate "Run by" %}</dt>
+                    <dd class="mb-0 fw-semibold">{{ log.executed_by|default:"—" }}</dd>
+                </div>
+                <div class="col">
+                    <dt class="text-body-secondary fw-normal">{% translate "Queued" %}</dt>
+                    <dd class="mb-0 fw-semibold">{{ log.executed_at|date:"Y-m-d H:i:s" }}</dd>
+                </div>
+                <div class="col">
+                    <dt class="text-body-secondary fw-normal">{% translate "Started" %}</dt>
+                    <dd class="mb-0 fw-semibold">{{ log.started_at|date:"Y-m-d H:i:s"|default:"—" }}</dd>
+                </div>
+                <div class="col">
+                    <dt class="text-body-secondary fw-normal">{% translate "Finished" %}</dt>
+                    <dd class="mb-0 fw-semibold">{{ log.finished_at|date:"Y-m-d H:i:s"|default:"—" }}</dd>
+                </div>
+                <div class="col">
+                    <dt class="text-body-secondary fw-normal">{% translate "Duration" %}</dt>
+                    <dd class="mb-0 fw-semibold">{{ duration|duration }}</dd>
+                </div>
+                <div class="col">
+                    <dt class="text-body-secondary fw-normal">{% translate "Exit code" %}</dt>
+                    <dd class="mb-0 fw-semibold">{% if log.exit_code is None %}—{% else %}{{ log.exit_code }}{% endif %}</dd>
+                </div>
+            </dl>
         </div>
     </div>
-    
-    <div class="panel panel-default">
-        <div class="panel-heading">
-            <h3 class="panel-title">Command Output: <code>{{ log.command_name }}</code></h3>
+
+    {% if is_active %}
+        <div class="alert alert-info d-flex align-items-center gap-3" role="status" aria-live="polite">
+            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+            <div data-aat-log-message>
+                {% if log.status == "PENDING" %}
+                    {% translate "Waiting for a Celery worker to pick this up. This page updates on its own." %}
+                {% else %}
+                    {% translate "Running. Output appears here when the command finishes." %}
+                {% endif %}
+            </div>
         </div>
-        <div class="panel-body">
-            <dl class="dl-horizontal">
-                <dt>Action Type</dt>
-                <dd>{{ log.action_type }}</dd>
-                <dt>Target</dt>
-                <dd>{{ log.target|default:"-" }}</dd>
-                <dt>Command</dt>
-                <dd><code>{{ log.command_name }}</code></dd>
-                <dt>Status</dt>
-                <dd>
-                    {% if log.status == 'SUCCESS' %}
-                    <span class="label label-success">SUCCESS</span>
-                    {% elif log.status == 'FAILED' %}
-                    <span class="label label-danger">FAILED</span>
-                    {% elif log.status == 'RUNNING' %}
-                    <span class="label label-info">RUNNING</span>
-                    {% else %}
-                    <span class="label label-default">{{ log.status }}</span>
-                    {% endif %}
-                </dd>
-                <dt>Executed By</dt>
-                <dd>{{ log.executed_by }}</dd>
-                <dt>Executed At</dt>
-                <dd>{{ log.executed_at }}</dd>
-                <dt>Started At</dt>
-                <dd>{{ log.started_at|default:"-" }}</dd>
-                <dt>Finished At</dt>
-                <dd>{{ log.finished_at|default:"-" }}</dd>
-                <dt>Exit Code</dt>
-                <dd>{{ log.exit_code|default:"-" }}</dd>
-                <dt>Normalized Command</dt>
-                <dd><code>{{ log.normalized_command|default:"-" }}</code></dd>
-                <dt>Result Summary</dt>
-                <dd>{{ log.output|default:"No output recorded yet."|linebreaksbr }}</dd>
-            </dl>
-            
-            <hr>
-            
-            <h4>Output Log</h4>
-            <pre style="max-height: 600px; overflow-y: scroll; background-color: #2b2b2b; color: #a9b7c6; border-radius: 4px; padding: 15px;">
-{{ log.output|default:"No output recorded yet." }}
-            </pre>
-            
-            {% if log.status == 'RUNNING' or log.status == 'PENDING' %}
-            <script>
-                // Auto-refresh the page every 3 seconds if the task is still running
-                setTimeout(function() {
-                    location.reload();
-                }, 3000);
-            </script>
+        <div class="alert alert-warning d-none" role="alert" data-aat-log-stuck>
+            {% translate "Still queued after 30 seconds. Check that your Celery workers are running." %}
+        </div>
+    {% endif %}
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center gap-2">
+            <h2 class="h6 mb-0"><i class="fa-solid fa-terminal me-2 text-body-secondary" aria-hidden="true"></i>{% translate "Output" %}</h2>
+            {% if log.output %}
+                <button type="button" class="btn btn-sm btn-secondary" data-aat-copy="#aat-output"
+                        data-aat-copied-label="{% translate 'Copied' %}">
+                    <i class="fa-regular fa-copy me-1" aria-hidden="true"></i><span>{% translate "Copy" %}</span>
+                </button>
             {% endif %}
         </div>
+        {% if log.output %}
+            <pre id="aat-output" class="aat-terminal">{{ log.output }}</pre>
+        {% else %}
+            <div class="card-body text-body-secondary">{% translate "No output recorded yet." %}</div>
+        {% endif %}
+    </div>
+
+    <div class="mt-3">
+        <a href="{% url 'aa_admin_toolkit:operations' %}" class="btn btn-secondary">
+            <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i>{% translate "Back to operations" %}
+        </a>
     </div>
 </div>
-{% endblock %}
+{% endblock content %}
+
+{% block extra_javascript %}
+    <script src="{% static 'aa_admin_toolkit/js/admin_toolkit.js' %}"></script>
+{% endblock extra_javascript %}

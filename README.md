@@ -3,23 +3,29 @@
 An Admin Toolkit for Alliance Auth to run management commands from UI.
 
 ## Features
-- Run management commands like `auth check`, `auth showmigrations` directly from the web interface
-- Run Discord sync commands if `aadiscordbot` is installed
-- View command output and logs securely
-- Use a dedicated operations page for runtime actions while keeping the dashboard as an overview
-- Restrict access with superuser-only mode or optional settings-based allowlists
+- Live overview of host CPU, memory, disk, Celery queue and Docker service health
+- Run management commands like `check`, `showmigrations` and `migrate` from the web interface, inside the app container when Docker is enabled
+- Queue the Alliance Auth Discord service's bulk sync tasks when that service is installed
+- Every run is logged; its page updates on its own until the command finishes, then shows the full output
+- Disruptive actions ask for confirmation first; full stack restarts need a typed phrase
+- Restrict access with settings-based allowlists, separately for viewing and running actions
 - Optionally restrict access by Alliance Auth EVE character IDs or names
+
+## Requirements
+
+- Python 3.12 or newer
+- Alliance Auth 5.0 or newer
 
 ## Installation
 
 1. Install via pip:
 ```bash
-pip install git+https://github.com/Thrainkrilleve/aa-admin-toolkit.git
+pip install git+https://github.com/Thrainkrilleve/aa-toolkit.git
 ```
 
 2. Add `'aa_admin_toolkit'` to your `INSTALLED_APPS` in `local.py`.
 
-3. Run migrations and collect static files:
+3. Run migrations and collect static files. The toolkit ships its own CSS and JavaScript, so `collectstatic` is needed after every upgrade:
 ```bash
 python manage.py migrate
 python manage.py collectstatic
@@ -86,9 +92,18 @@ If view/execute allowlists are not set, they fall back to the legacy allowlists:
 - `AA_ADMIN_TOOLKIT_COMPOSE_PROJECT_DIRECTORY`
 - `AA_ADMIN_TOOLKIT_ALLOWED_DOCKER_SERVICES`
 - `AA_ADMIN_TOOLKIT_ENABLE_FULL_STACK_RESTART`
-- `AA_ADMIN_TOOLKIT_APP_SERVICE`
+- `AA_ADMIN_TOOLKIT_APP_SERVICE` (default: `web`)
+- `AA_ADMIN_TOOLKIT_WORKER_SERVICE` (default: `worker`): the service restarted by the "Restart the Celery worker service" package follow-up
 - `AA_ADMIN_TOOLKIT_APP_PYTHON_COMMAND`
 - `AA_ADMIN_TOOLKIT_APP_MANAGEMENT_COMMAND`
+
+The defaults don't match the service names in the official Alliance Auth Docker setup. If you use it, set:
+
+```python
+AA_ADMIN_TOOLKIT_APP_SERVICE = "allianceauth_gunicorn"
+AA_ADMIN_TOOLKIT_WORKER_SERVICE = "allianceauth_worker"
+AA_ADMIN_TOOLKIT_DB_SERVICE = "auth_mysql"
+```
 
 ### Database backup
 
@@ -100,9 +115,16 @@ If view/execute allowlists are not set, they fall back to the legacy allowlists:
 ### Other
 
 - `AA_ADMIN_TOOLKIT_ALLOWED_EDITABLE_FILES` (the toolkit always keeps `local.py` editable)
+- `AA_ADMIN_TOOLKIT_EDITABLE_FILE_PATHS`: optional map of file name to absolute path, for files that don't live in `BASE_DIR`, for example `{"requirements.txt": "/home/allianceauth/conf/requirements.txt"}`
 - `AA_ADMIN_TOOLKIT_ALLOWED_MANAGE_COMMANDS`
 - `AA_ADMIN_TOOLKIT_MAINTENANCE_SENTINEL_PATH`
 - `AA_ADMIN_TOOLKIT_AUDIT_WEBHOOK_URL`
+
+Editable files are read from `BASE_DIR` unless `AA_ADMIN_TOOLKIT_EDITABLE_FILE_PATHS` says otherwise. The one exception is `local.py`, which is opened next to your active settings module (`myauth/myauth/settings/local.py` in a standard install).
+
+The Discord tab only appears when `allianceauth.services.modules.discord` is in `INSTALLED_APPS`.
+
+Maintenance mode only creates or removes the sentinel file. Your reverse proxy or a middleware has to check for that file to actually block traffic.
 
 ### Example local.py access settings
 
