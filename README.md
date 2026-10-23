@@ -14,7 +14,7 @@ An Admin Toolkit for Alliance Auth to run management commands from UI.
 ## Requirements
 
 - Python 3.12 or newer
-- Alliance Auth 4.0 or newer (the pages use the Bootstrap 5 layout)
+- Alliance Auth 5.0 or newer
 
 ## Installation
 

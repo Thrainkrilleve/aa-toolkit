@@ -40,7 +40,7 @@ setup(
     ],
     python_requires=">=3.12",
     install_requires=[
-        "allianceauth>=4.0.0",
+        "allianceauth>=5.0.0",
         "psutil>=5.9.0",
     ],
 )
